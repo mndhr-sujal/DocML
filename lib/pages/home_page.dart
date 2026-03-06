@@ -16,12 +16,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Map<String, dynamic>> recentFiles = [];
+  final List<Map<String, dynamic>> _recentFiles = [];
 
-  bool hasSelectedFile =false;
-  String? selectedFileName;
-  String? selectedFileExtension;
-  String? selectedFilePath;
+  bool _hasSelectedFile = false;
+  String? _selectedFileName;
+  String? _selectedFileExtension;
+  String? _selectedFilePath;
+
+  static const List<String> _supportedExtensions = [
+    'bmp', 'docx', 'epub', 'htm', 'html', 'jpeg', 'jpg', 'markdown', 'md', 'odt', 'pdf', 'png', 'txt'
+  ];
 
   @override
   void initState() {
@@ -37,20 +41,20 @@ class _HomePageState extends State<HomePage> {
         final contents = await file.readAsString();
         final List<dynamic> decoded = jsonDecode(contents);
         setState(() {
-          recentFiles.clear();
+          _recentFiles.clear();
           for (final item in decoded) {
             if (item is Map) {
-              recentFiles.add(Map<String, dynamic>.from(item));
+              _recentFiles.add(Map<String, dynamic>.from(item));
             }
           }
-          // Keep only the most recent 10 entries
-          if (recentFiles.length > 10) {
-            recentFiles.removeRange(10, recentFiles.length);
+          // max length of recent files is 10
+          if (_recentFiles.length > 10) {
+            _recentFiles.removeRange(10, _recentFiles.length);
           }
         });
       }
     } catch (e) {
-      print('Failed to load recent files: $e');
+      debugPrint('Failed to load recent files: $e');
     }
   }
 
@@ -58,71 +62,59 @@ class _HomePageState extends State<HomePage> {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/recent_files.json');
-      await file.writeAsString(jsonEncode(recentFiles));
+      await file.writeAsString(jsonEncode(_recentFiles));
     } catch (e) {
-      print('Failed to save recent files: $e');
+      debugPrint('Failed to save recent files: $e');
     }
   }
 
+  void _updateSelectedFile(String name, String? ext, String path) {
+    setState(() {
+      _recentFiles.removeWhere((element) => element['path'] == path);  // Remove duplicate recent files
+      _recentFiles.insert(0, {
+        'name': name,
+        'extension': ext,
+        'path': path,
+      });
+      _selectedFileName = name;
+      _selectedFileExtension = ext;
+      _selectedFilePath = path;
+      _hasSelectedFile = true;
+      // max length of recent files is 10
+      if (_recentFiles.length > 10) {
+        _recentFiles.removeRange(10, _recentFiles.length);
+      }
+    });
+    _saveRecentFiles();
+  }
 
-  Future<void> pickFile() async {
+  Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['jpeg','jpg','png','pdf']
+      allowedExtensions: _supportedExtensions,
     );
 
     if (result != null && result.files.isNotEmpty) {
       final file = result.files.first;
-
-      setState(() {
-        recentFiles.insert(0, {
-          'name': file.name,
-          'extension': file.extension,
-          'path': file.path,
-        });
-        selectedFileName = file.name;
-        selectedFileExtension = file.extension;
-        selectedFilePath = file.path;
-        hasSelectedFile = true;
-        // Trim to 10 most recent entries
-        if (recentFiles.length > 10) {
-          recentFiles.removeRange(10, recentFiles.length);
-        }
-      });
-      await _saveRecentFiles();
+      _updateSelectedFile(file.name, file.extension, file.path!);
     }
   }
 
-  Future<void> handleDroppedFile(File file) async {
+  Future<void> _handleDroppedFile(File file) async {
     final fileName = file.path.split(Platform.pathSeparator).last;
     final extension = fileName.split('.').last.toLowerCase();
 
-     if (!['png', 'jpg', 'jpeg', 'pdf'].contains(extension)) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Only image and PDF files are allowed."),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
+    if (!_supportedExtensions.contains(extension)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Selected file type is not supported."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    setState(() {
-      recentFiles.insert(0, {
-        'name': fileName,
-        'extension': extension,
-        'path': file.path,
-      });
-      selectedFileName = fileName;
-      selectedFileExtension = extension;
-      selectedFilePath = file.path;
-      hasSelectedFile = true;
-      // Trim to 10 most recent entries
-      if (recentFiles.length > 10) {
-        recentFiles.removeRange(10, recentFiles.length);
-      }
-    });
-    await _saveRecentFiles();
+    _updateSelectedFile(fileName, extension, file.path);
   }
 
   @override
@@ -130,18 +122,16 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: Row(
         children: [
-          LeftSidebar(
-            recentFiles: recentFiles,
-          ),
+          LeftSidebar(recentFiles: _recentFiles),
           Expanded(
             child: CenterPanel(
-              onPickFile: pickFile,
-              onDropFile: handleDroppedFile,
-              hasSelectedFile: hasSelectedFile,
-              selectedFileName: selectedFileName,
-              selectedFilePath: selectedFilePath,
-              selectedFileExtension: selectedFileExtension,
-              onClearFile: clearSelectedFile,
+              onPickFile: _pickFile,
+              onDropFile: _handleDroppedFile,
+              hasSelectedFile: _hasSelectedFile,
+              selectedFileName: _selectedFileName,
+              selectedFilePath: _selectedFilePath,
+              selectedFileExtension: _selectedFileExtension,
+              onClearFile: _clearSelectedFile,
             ),
           ),
           const RightChat(),
@@ -150,14 +140,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void clearSelectedFile() {
-  setState(() {
-    hasSelectedFile = false;
-    selectedFileName = null;
-    selectedFileExtension = null;
-    selectedFilePath = null;
-  });
-  _saveRecentFiles();
-}
-
+  void _clearSelectedFile() {
+    setState(() {
+      _hasSelectedFile = false;
+      _selectedFileName = null;
+      _selectedFileExtension = null;
+      _selectedFilePath = null;
+    });
+    _saveRecentFiles();
+  }
 }

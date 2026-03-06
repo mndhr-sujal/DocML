@@ -1,2 +1,9 @@
-pypdf
-pdfkit
+paddlepaddle==3.2.2
+paddlex[ocr]==3.3.2
+pypandoc
+Pillow
+pikepdf
+htmlmin4
+py7zr
+PyMuPDF
+pylatexenc

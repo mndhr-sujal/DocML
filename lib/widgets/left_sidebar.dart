@@ -31,65 +31,37 @@ class LeftSidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "DocML",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-
+          const Text("DocML", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           const SizedBox(height: 30),
-
-          const Text(
-            "Recent Files",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-
+          const Text("Recent Files", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 15),
-
           Expanded(
             child: recentFiles.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No recent files",
-                      style: TextStyle(color: Color.fromARGB(255, 110, 110, 110)),
-                    ),
-                  )
+                ? const Center(child: Text("No recent files", style: TextStyle(color: Color.fromARGB(255, 110, 110, 110))))
                 : ListView.builder(
-              itemCount: recentFiles.length,
-              itemBuilder: (context, index) {
-                final file = recentFiles[index];
-
-                return Draggable<Map<String, dynamic>>(
-                  data: file,
-                  feedback: Material(
-                    elevation: 4.0,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      width: 200,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: FileTile(
+                    itemCount: recentFiles.length,
+                    itemBuilder: (context, index) {
+                      final file = recentFiles[index];
+                      final tile = _FileTile(
                         name: file['name'],
                         icon: _getIcon(file['extension']),
-                      ),
-                    ),
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      final path = file['path'];
-                      if (path != null) {
-                        OpenFilex.open(path); 
-                      }
+                        onTap: () {
+                          final path = file['path'];
+                          if (path != null) OpenFilex.open(path);
+                        },
+                      );
+
+                      return Draggable<Map<String, dynamic>>(
+                        data: file,
+                        feedback: Material(
+                          elevation: 4.0,
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(width: 180, child: tile),
+                        ),
+                        child: tile,
+                      );
                     },
-                    child: FileTile(
-                      name: file['name'],
-                      icon: _getIcon(file['extension']),
-                    ),
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -97,23 +69,22 @@ class LeftSidebar extends StatelessWidget {
   }
 }
 
-class FileTile extends StatelessWidget {
+class _FileTile extends StatelessWidget {
   final String name;
   final IconData icon;
+  final VoidCallback onTap;
 
-  const FileTile({
-    super.key,
-    required this.name,
-    required this.icon,
-  });
+  const _FileTile({required this.name, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text(name),
-      tileColor: const Color.fromARGB(255, 148, 148, 148),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      leading: Icon(icon, size: 20),
+      title: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+      dense: true,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

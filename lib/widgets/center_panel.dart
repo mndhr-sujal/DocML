@@ -32,8 +32,49 @@ class _CenterPanelState extends State<CenterPanel> {
   bool isDragging = false;
   bool isProcessing = false;
 
-  IconData getFileIcon() {
-    switch (widget.selectedFileExtension) {
+  static const List<String> _compressExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'bmp', 'txt', 'html'];
+  static const List<String> _ocrExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'bmp'];
+
+  static const Map<String, List<String>> _supportedConversions = {
+    "png": ["png", "jpg", "jpeg", "bmp", "tiff", "webp", "pdf"],
+    "jpg": ["jpg", "jpeg", "png", "bmp", "tiff", "webp", "pdf"],
+    "jpeg": ["jpg", "jpeg", "png", "bmp", "tiff", "webp", "pdf"],
+    "bmp": ["bmp", "png", "jpg", "jpeg", "tiff", "webp", "pdf"],
+    "tiff": ["tiff", "png", "jpg", "jpeg", "bmp", "webp", "pdf"],
+    "webp": ["webp", "png", "jpg", "jpeg", "bmp", "tiff", "pdf"],
+    "md": ["html", "docx", "pdf"],
+    "markdown": ["html", "docx", "pdf"],
+    "html": ["md", "markdown", "docx", "pdf"],
+    "htm": ["md", "markdown", "docx", "pdf"],
+    "docx": ["html", "md", "markdown", "pdf"],
+    "odt": ["html", "md", "markdown", "pdf"],
+    "epub": ["html", "md", "markdown"],
+  };
+
+  void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+      ),
+    );
+  }
+
+  Future<ProcessResult?> _runPython(String script, List<String> args) async {
+    try {
+      return await Process.run('python', [script, ...args]);
+    } catch (e) {
+      debugPrint("Error running $script: $e");
+      _showSnackBar("Error: $e", Colors.red);
+      return null;
+    }
+  }
+
+  IconData _getFileIcon() {
+    final ext = widget.selectedFileExtension?.toLowerCase();
+    switch (ext) {
       case 'pdf':
         return Icons.picture_as_pdf;
       case 'png':
@@ -42,6 +83,28 @@ class _CenterPanelState extends State<CenterPanel> {
         return Icons.image;
       default:
         return Icons.insert_drive_file;
+    }
+  }
+
+  String _getConversionLabel(String format) {
+    switch (format.toLowerCase()) {
+      case 'pdf':
+        return 'PDF';
+      case 'docx':
+        return 'Docx';
+      case 'html':
+      case 'htm':
+        return 'HTML';
+      case 'md':
+        return 'Markdown (.md)';
+      case 'markdown':
+        return 'Markdown (.markdown)';
+      case 'odt':
+        return 'ODT';
+      case 'epub':
+        return 'EPUB';
+      default:
+        return format[0].toUpperCase() + format.substring(1);
     }
   }
 
@@ -63,70 +126,52 @@ class _CenterPanelState extends State<CenterPanel> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-
           //Upload and file view switch
           widget.hasSelectedFile
               ? Column(
                   children: [
                     GestureDetector(
                       onTap: () {
-                        if (widget.selectedFilePath != null)
-                        {
+                        if (widget.selectedFilePath != null) {
                           OpenFilex.open(widget.selectedFilePath!);
                         }
                       },
-                    child: Icon(
-                      getFileIcon(),
-                      size: 80,
-                      color: Colors.blue,
+                      child: Icon(_getFileIcon(), size: 80, color: Colors.blue),
                     ),
-              ),
                     const SizedBox(height: 10),
                     Text(
                       widget.selectedFileName ?? '',
                       style: const TextStyle(fontSize: 16),
                     ),
-
                     const SizedBox(height: 5),
-
-                    const Text (
+                    const Text(
                       "Click to open",
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
                 )
-
-                
               : DragTarget<Map<String, dynamic>>(
-                  onWillAccept: (data) => data != null && data['path'] != null,
-                  onAccept: (data) {
-                    final path = data['path'];
+                  onWillAcceptWithDetails: (details) =>
+                      details.data['path'] != null,
+                  onAcceptWithDetails: (details) {
+                    final path = details.data['path'];
                     if (path != null) widget.onDropFile(File(path));
                   },
                   builder: (context, candidateData, rejectedData) {
-                    final internalDragging = candidateData.isNotEmpty;
+                    final showDragging = isDragging || candidateData.isNotEmpty;
                     return DropTarget(
-                      onDragEntered: (details) {
-                        setState(() => isDragging = true);
-                      },
-                      onDragExited: (details) {
-                        setState(() => isDragging = false);
-                      },
-                      onDragDone: (details) {
-                        final file = details.files.first;
-                        widget.onDropFile(File(file.path));
-                      },
+                      onDragEntered: (details) => setState(() => isDragging = true),
+                      onDragExited: (details) => setState(() => isDragging = false),
+                      onDragDone: (details) => widget.onDropFile(File(details.files.first.path)),
                       child: GestureDetector(
                         onTap: widget.onPickFile,
                         child: Container(
                           height: 200,
                           width: 500,
                           decoration: BoxDecoration(
-                            color: (isDragging || internalDragging)
-                                ? Colors.blue.shade50
-                                : Colors.transparent,
+                            color: showDragging ? Colors.blue.shade50 : Colors.transparent,
                             border: Border.all(
-                              color: (isDragging || internalDragging) ? Colors.blue : Colors.grey,
+                              color: showDragging ? Colors.blue : Colors.grey,
                               width: 2,
                             ),
                             borderRadius: BorderRadius.circular(12),
@@ -137,7 +182,7 @@ class _CenterPanelState extends State<CenterPanel> {
                               Icon(
                                 Icons.upload,
                                 size: 40,
-                                color: (isDragging || internalDragging) ? Colors.blue : Colors.black,
+                                color: showDragging ? Colors.blue : Colors.black,
                               ),
                               const SizedBox(height: 10),
                               const Text(
@@ -146,9 +191,7 @@ class _CenterPanelState extends State<CenterPanel> {
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                (isDragging || internalDragging)
-                                    ? "Release to upload"
-                                    : "Click to choose file",
+                                showDragging ? "Release to upload" : "Click to choose file",
                                 style: const TextStyle(color: Colors.grey),
                               ),
                             ],
@@ -163,261 +206,81 @@ class _CenterPanelState extends State<CenterPanel> {
 
           //BUTTONS AFTER FILE SELECTION
           if (widget.hasSelectedFile)
-          Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 20,     // space between buttons horizontally
-                runSpacing: 20,  // space between rows
-                children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    //For Compress
-                    print("Compress clicked");
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Compressing file..."),
-                            backgroundColor: Colors.grey,
-                          ),
-                        );
-                    try {
-                      final result = await Process.run(
-                        'python',
-                        [
-                          'lib/compress.py',
-                          widget.selectedFilePath!
-                        ],
-                      );
-                      
-                      if (result.exitCode == 0) {
-                        print("Compression successful");
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Compression successful!"),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        print(result.stdout);
-                      } else {
-                        print("Compression failed");
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Compression failed!"),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        print(result.stderr);
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 20, // space between buttons horizontally
+              runSpacing: 20, // space between rows
+              children: [
+                if (_compressExtensions
+                    .contains(widget.selectedFileExtension?.toLowerCase()))
+                  ElevatedButton(
+                    onPressed: () async {
+                      debugPrint("Compress clicked");
+                      _showSnackBar("Compressing file...", Colors.grey);
+                      final result = await _runPython(
+                          'lib/compress.py', [widget.selectedFilePath!]);
+                      if (result != null) {
+                        if (result.exitCode == 0) {
+                          _showSnackBar("Compression successful!", Colors.green);
+                        } else {
+                          _showSnackBar("Compression failed!", Colors.red);
+                        }
                       }
-                    } catch (e) {
-                      print("Error running compression: $e");
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    fixedSize: const Size(130, 55),
-                    backgroundColor: const Color.fromARGB(255, 227, 220, 228),
+                    },
+                    style: ElevatedButton.styleFrom(
+                      fixedSize: const Size(130, 55),
+                      backgroundColor: const Color.fromARGB(255, 227, 220, 228),
+                    ),
+                    child: const Text(
+                      "Compress",
+                      style: TextStyle(color: Colors.black),
+                    ),
                   ),
-                  child: const Text(
-                    "Compress",
-                    style: TextStyle(color: Colors.black),),
-                ),  
 
+                if (_ocrExtensions
+                    .contains(widget.selectedFileExtension?.toLowerCase()))
+                  ElevatedButton(
+                    onPressed: () async {
+                      setState(() => isProcessing = true);
+                      debugPrint("OCR clicked");
+                      _showSnackBar("Running OCR...", Colors.grey);
 
-                ElevatedButton(
-                  onPressed: () async {
-                    setState(() => isProcessing = true);
-                    print("OCR clicked");
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Running OCR..."),
-                        backgroundColor: Colors.grey,
-                      ),
-                    );
-                    try {
-                      // Run OCR first
-                      final ocrResult = await Process.run(
-                        'python',
-                        [
-                          'lib/ocr.py',
-                          widget.selectedFilePath!
-                        ],
-                      );
-                      
-                      if (ocrResult.exitCode != 0) {
-                        print("OCR failed");
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("OCR failed!"),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        print(ocrResult.stderr);
+                      final ocrResult = await _runPython(
+                          'lib/ocr.py', [widget.selectedFilePath!]);
+
+                      if (ocrResult == null || ocrResult.exitCode != 0) {
+                        if (ocrResult != null) {
+                          _showSnackBar("OCR failed!", Colors.red);
+                        }
                         setState(() => isProcessing = false);
                         return;
                       }
-                      
-                      print("OCR completed, running reconstruction...");
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Running reconstruction..."),
-                          backgroundColor: Colors.grey,
-                        ),
-                      );
-                      
-                      // Run reconstruction
-                      final reconstructResult = await Process.run(
-                        'python',
-                        [
-                          'lib/reconstruct.py',
-                          widget.selectedFilePath!,
-                        ],
-                      );
-                      
-                      if (reconstructResult.exitCode == 0) {
-                        print("Reconstruction successful");
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("OCR and reconstruction successful!"),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        print(reconstructResult.stdout);
-                      } else {
-                        print("Reconstruction failed");
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Reconstruction failed!"),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        print(reconstructResult.stderr);
-                      }
-                      setState(() => isProcessing = false);
-                    } catch (e) {
-                      print("Error running OCR/reconstruction: $e");
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Error: $e"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      setState(() => isProcessing = false);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    fixedSize: const Size(130, 55),
-                    backgroundColor: const Color.fromARGB(255, 227, 220, 228),
-                  ),
-                  child: const Text(
-                    "OCR",
-                    style: TextStyle(color: Colors.black),),
-                ),  
 
-if (widget.selectedFileExtension!= 'pdf')
-                PopupMenuButton<String>(
-                  offset: const Offset(-10, 60),
-                  color: const Color.fromARGB(255, 255, 255, 255),
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  onSelected: (value) async {
-                    print("Selected format: $value");
-                    // Dismiss any existing snackbar
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    // Show a snackbar indicating conversion is starting
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Converting to $value..."),
-                        backgroundColor: Colors.grey,
-                      ),
-                    );
-                    try {
-                      final result = await Process.run(
-                        'python',
-                        [
-                          'lib/convert.py',
-                          widget.selectedFilePath!,
-                          value,  // Pass the selected format as the second argument
-                        ],
-                      );
-                      
-                      if (result.exitCode == 0) {
-                        print("Conversion successful");
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Conversion to $value successful!"),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        print(result.stdout);
-                      } else {
-                        print("Conversion failed");
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Conversion to $value failed!"),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        print(result.stderr);
+                      _showSnackBar("Running reconstruction...", Colors.grey);
+                      final reconstructResult = await _runPython(
+                          'lib/reconstruct.py', [widget.selectedFilePath!]);
+
+                      if (reconstructResult != null) {
+                        if (reconstructResult.exitCode == 0) {
+                          _showSnackBar("OCR and reconstruction successful!",
+                              Colors.green);
+                        } else {
+                          _showSnackBar("Reconstruction failed!", Colors.red);
+                        }
                       }
-                    } catch (e) {
-                      print("Error running conversion: $e");
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Error: $e"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  itemBuilder: (context) {
-                    final formats = [
-                      {'value': 'pdf', 'label': 'PDF'},
-                      {'value': 'jpg', 'label': 'JPG'},
-                      {'value': 'png', 'label': 'PNG'},
-                      {'value': 'bmp', 'label': 'BMP'},
-                      {'value': 'tiff', 'label': 'TIFF'},
-                                       ];
-                    final filteredFormats = formats.where((format) {
-                      final ext = widget.selectedFileExtension?.toLowerCase();
-                      if (format['value'] == ext) return false;
-                      if (ext == 'pdf' && ['jpg', 'png', 'bmp', 'tiff'].contains(format['value'])) return false;
-                      return true;
-                    });
-                    return filteredFormats.map((format) => PopupMenuItem<String>(
-                      value: format['value'],
-                      child: Text(format['label']!),
-                    )).toList();
-                  },
-                  child: Container(
-                    width: 130,
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 227, 220, 228),
-                      borderRadius: BorderRadius.circular(55),
+                      setState(() => isProcessing = false);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      fixedSize: const Size(130, 55),
+                      backgroundColor: const Color.fromARGB(255, 227, 220, 228),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "   File Format",
-                          style: TextStyle(color: Colors.black),
-                        ),
-                        SizedBox(width: 2),
-                        Icon(Icons.arrow_drop_down, color: Colors.black),
-                      ],
+                    child: const Text(
+                      "OCR",
+                      style: TextStyle(color: Colors.black),
                     ),
                   ),
-                ),
+
+                _buildConvertButton(),
 
                 ElevatedButton.icon(
                   onPressed: widget.onClearFile,
@@ -432,8 +295,69 @@ if (widget.selectedFileExtension!= 'pdf')
                   ),
                 ),
               ],
-           ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildConvertButton() {
+    final inputExt = widget.selectedFileExtension?.toLowerCase() ?? '';
+    final allowedOutputs = _supportedConversions[inputExt] ?? [];
+
+    // Filter out allowed outputs
+    final filteredOutputs =
+        allowedOutputs.where((out) => out != inputExt).toList();
+
+    if (filteredOutputs.isEmpty) return const SizedBox.shrink();
+
+    return PopupMenuButton<String>(
+      offset: const Offset(-10, 60),
+      color: const Color.fromARGB(255, 255, 255, 255),
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      onSelected: (value) async {
+        debugPrint("Selected format: $value");
+        _showSnackBar("Converting to $value...", Colors.grey);
+        final result = await _runPython(
+            'lib/convert.py', [widget.selectedFilePath!, value]);
+
+        if (result != null) {
+          if (result.exitCode == 0) {
+            _showSnackBar("Conversion to $value successful!", Colors.green);
+          } else {
+            _showSnackBar("Conversion to $value failed!", Colors.red);
+          }
+        }
+      },
+      itemBuilder: (context) {
+        return filteredOutputs.map(
+          (format) => PopupMenuItem<String>(
+            value: format,
+            child: Text(_getConversionLabel(format)),
+          ),
+        ).toList();
+      },
+      child: Container(
+        width: 130,
+        height: 55,
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 227, 220, 228),
+          borderRadius: BorderRadius.circular(55),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "File Format",
+              style: TextStyle(color: Colors.black),
+            ),
+            SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down, color: Colors.black),
+          ],
+        ),
       ),
     );
   }
