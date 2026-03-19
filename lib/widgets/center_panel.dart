@@ -31,9 +31,25 @@ class CenterPanel extends StatefulWidget {
 class _CenterPanelState extends State<CenterPanel> {
   bool isDragging = false;
   bool isProcessing = false;
+  bool enableTableRecognition = true;
+  bool enableFormulaRecognition = true;
 
-  static const List<String> _compressExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'bmp', 'txt', 'html'];
-  static const List<String> _ocrExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'bmp'];
+  static const List<String> _compressExtensions = [
+    'pdf',
+    'jpg',
+    'jpeg',
+    'png',
+    'bmp',
+    'txt',
+    'html',
+  ];
+  static const List<String> _ocrExtensions = [
+    'pdf',
+    'jpg',
+    'jpeg',
+    'png',
+    'bmp',
+  ];
 
   static const Map<String, List<String>> _supportedConversions = {
     "png": ["png", "jpg", "jpeg", "bmp", "tiff", "webp", "pdf"],
@@ -54,12 +70,9 @@ class _CenterPanelState extends State<CenterPanel> {
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   Future<ProcessResult?> _runPython(String script, List<String> args) async {
@@ -160,16 +173,21 @@ class _CenterPanelState extends State<CenterPanel> {
                   builder: (context, candidateData, rejectedData) {
                     final showDragging = isDragging || candidateData.isNotEmpty;
                     return DropTarget(
-                      onDragEntered: (details) => setState(() => isDragging = true),
-                      onDragExited: (details) => setState(() => isDragging = false),
-                      onDragDone: (details) => widget.onDropFile(File(details.files.first.path)),
+                      onDragEntered: (details) =>
+                          setState(() => isDragging = true),
+                      onDragExited: (details) =>
+                          setState(() => isDragging = false),
+                      onDragDone: (details) =>
+                          widget.onDropFile(File(details.files.first.path)),
                       child: GestureDetector(
                         onTap: widget.onPickFile,
                         child: Container(
                           height: 200,
                           width: 500,
                           decoration: BoxDecoration(
-                            color: showDragging ? Colors.blue.shade50 : Colors.transparent,
+                            color: showDragging
+                                ? Colors.blue.shade50
+                                : Colors.transparent,
                             border: Border.all(
                               color: showDragging ? Colors.blue : Colors.grey,
                               width: 2,
@@ -182,7 +200,9 @@ class _CenterPanelState extends State<CenterPanel> {
                               Icon(
                                 Icons.upload,
                                 size: 40,
-                                color: showDragging ? Colors.blue : Colors.black,
+                                color: showDragging
+                                    ? Colors.blue
+                                    : Colors.black,
                               ),
                               const SizedBox(height: 10),
                               const Text(
@@ -191,7 +211,9 @@ class _CenterPanelState extends State<CenterPanel> {
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                showDragging ? "Release to upload" : "Click to choose file",
+                                showDragging
+                                    ? "Release to upload"
+                                    : "Click to choose file",
                                 style: const TextStyle(color: Colors.grey),
                               ),
                             ],
@@ -204,24 +226,29 @@ class _CenterPanelState extends State<CenterPanel> {
 
           const SizedBox(height: 20),
 
-          //BUTTONS AFTER FILE SELECTION
+          //Buttons after file selection
           if (widget.hasSelectedFile)
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 20, // space between buttons horizontally
               runSpacing: 20, // space between rows
               children: [
-                if (_compressExtensions
-                    .contains(widget.selectedFileExtension?.toLowerCase()))
+                if (_compressExtensions.contains(
+                  widget.selectedFileExtension?.toLowerCase(),
+                ))
                   ElevatedButton(
                     onPressed: () async {
                       debugPrint("Compress clicked");
                       _showSnackBar("Compressing file...", Colors.grey);
-                      final result = await _runPython(
-                          'lib/compress.py', [widget.selectedFilePath!]);
+                      final result = await _runPython('lib/compress.py', [
+                        widget.selectedFilePath!,
+                      ]);
                       if (result != null) {
                         if (result.exitCode == 0) {
-                          _showSnackBar("Compression successful!", Colors.green);
+                          _showSnackBar(
+                            "Compression successful!",
+                            Colors.green,
+                          );
                         } else {
                           _showSnackBar("Compression failed!", Colors.red);
                         }
@@ -237,47 +264,112 @@ class _CenterPanelState extends State<CenterPanel> {
                     ),
                   ),
 
-                if (_ocrExtensions
-                    .contains(widget.selectedFileExtension?.toLowerCase()))
-                  ElevatedButton(
-                    onPressed: () async {
-                      setState(() => isProcessing = true);
-                      debugPrint("OCR clicked");
-                      _showSnackBar("Running OCR...", Colors.grey);
+                if (_ocrExtensions.contains(
+                  widget.selectedFileExtension?.toLowerCase(),
+                ))
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          setState(() => isProcessing = true);
+                          debugPrint("OCR clicked");
+                          _showSnackBar("Running OCR...", Colors.grey);
 
-                      final ocrResult = await _runPython(
-                          'lib/ocr.py', [widget.selectedFilePath!]);
+                          final ocrArgs = [widget.selectedFilePath!];
+                          if (enableTableRecognition) ocrArgs.add('--table');
+                          if (enableFormulaRecognition)
+                            ocrArgs.add('--formula');
 
-                      if (ocrResult == null || ocrResult.exitCode != 0) {
-                        if (ocrResult != null) {
-                          _showSnackBar("OCR failed!", Colors.red);
-                        }
-                        setState(() => isProcessing = false);
-                        return;
-                      }
+                          final ocrResult = await _runPython(
+                            'lib/ocr.py',
+                            ocrArgs,
+                          );
 
-                      _showSnackBar("Running reconstruction...", Colors.grey);
-                      final reconstructResult = await _runPython(
-                          'lib/reconstruct.py', [widget.selectedFilePath!]);
+                          if (ocrResult == null || ocrResult.exitCode != 0) {
+                            if (ocrResult != null) {
+                              _showSnackBar("OCR failed!", Colors.red);
+                            }
+                            setState(() => isProcessing = false);
+                            return;
+                          }
 
-                      if (reconstructResult != null) {
-                        if (reconstructResult.exitCode == 0) {
-                          _showSnackBar("OCR and reconstruction successful!",
-                              Colors.green);
-                        } else {
-                          _showSnackBar("Reconstruction failed!", Colors.red);
-                        }
-                      }
-                      setState(() => isProcessing = false);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      fixedSize: const Size(130, 55),
-                      backgroundColor: const Color.fromARGB(255, 227, 220, 228),
-                    ),
-                    child: const Text(
-                      "OCR",
-                      style: TextStyle(color: Colors.black),
-                    ),
+                          _showSnackBar(
+                            "Running reconstruction...",
+                            Colors.grey,
+                          );
+                          final reconstructResult = await _runPython(
+                            'lib/reconstruct.py',
+                            [widget.selectedFilePath!],
+                          );
+
+                          if (reconstructResult != null) {
+                            if (reconstructResult.exitCode == 0) {
+                              _showSnackBar(
+                                "OCR and reconstruction successful!",
+                                Colors.green,
+                              );
+                            } else {
+                              _showSnackBar(
+                                "Reconstruction failed!",
+                                Colors.red,
+                              );
+                            }
+                          }
+                          setState(() => isProcessing = false);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          fixedSize: const Size(130, 55),
+                          backgroundColor: const Color.fromARGB(
+                            255,
+                            227,
+                            220,
+                            228,
+                          ),
+                        ),
+                        child: const Text(
+                          "OCR",
+                          style: TextStyle(color: Colors.black),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: 110,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            FilterChip(
+                              label: const Center(
+                                child: Text(
+                                  "Table",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              selected: enableTableRecognition,
+                              onSelected: (val) =>
+                                  setState(() => enableTableRecognition = val),
+                              backgroundColor: Colors.blue.shade50,
+                              selectedColor: Colors.blue.shade200,
+                            ),
+                            const SizedBox(height: 8),
+                            FilterChip(
+                              label: const Center(
+                                child: Text(
+                                  "Formula",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              selected: enableFormulaRecognition,
+                              onSelected: (val) => setState(
+                                () => enableFormulaRecognition = val,
+                              ),
+                              backgroundColor: Colors.blue.shade50,
+                              selectedColor: Colors.blue.shade200,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
 
                 _buildConvertButton(),
@@ -301,13 +393,15 @@ class _CenterPanelState extends State<CenterPanel> {
     );
   }
 
+  // ---Conversion Button---
   Widget _buildConvertButton() {
     final inputExt = widget.selectedFileExtension?.toLowerCase() ?? '';
     final allowedOutputs = _supportedConversions[inputExt] ?? [];
 
     // Filter out allowed outputs
-    final filteredOutputs =
-        allowedOutputs.where((out) => out != inputExt).toList();
+    final filteredOutputs = allowedOutputs
+        .where((out) => out != inputExt)
+        .toList();
 
     if (filteredOutputs.isEmpty) return const SizedBox.shrink();
 
@@ -315,14 +409,14 @@ class _CenterPanelState extends State<CenterPanel> {
       offset: const Offset(-10, 60),
       color: const Color.fromARGB(255, 255, 255, 255),
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       onSelected: (value) async {
         debugPrint("Selected format: $value");
         _showSnackBar("Converting to $value...", Colors.grey);
-        final result = await _runPython(
-            'lib/convert.py', [widget.selectedFilePath!, value]);
+        final result = await _runPython('lib/convert.py', [
+          widget.selectedFilePath!,
+          value,
+        ]);
 
         if (result != null) {
           if (result.exitCode == 0) {
@@ -333,12 +427,14 @@ class _CenterPanelState extends State<CenterPanel> {
         }
       },
       itemBuilder: (context) {
-        return filteredOutputs.map(
-          (format) => PopupMenuItem<String>(
-            value: format,
-            child: Text(_getConversionLabel(format)),
-          ),
-        ).toList();
+        return filteredOutputs
+            .map(
+              (format) => PopupMenuItem<String>(
+                value: format,
+                child: Text(_getConversionLabel(format)),
+              ),
+            )
+            .toList();
       },
       child: Container(
         width: 130,
@@ -350,10 +446,7 @@ class _CenterPanelState extends State<CenterPanel> {
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              "File Format",
-              style: TextStyle(color: Colors.black),
-            ),
+            Text("File Format", style: TextStyle(color: Colors.black)),
             SizedBox(width: 2),
             Icon(Icons.arrow_drop_down, color: Colors.black),
           ],

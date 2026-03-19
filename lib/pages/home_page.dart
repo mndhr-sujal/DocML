@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:split_view/split_view.dart';
 
 import '../widgets/left_sidebar.dart';
 import '../widgets/center_panel.dart';
@@ -26,16 +27,31 @@ class _HomePageState extends State<HomePage> {
   static const List<String> _supportedExtensions = [
     'bmp', 'docx', 'epub', 'htm', 'html', 'jpeg', 'jpg', 'markdown', 'md', 'odt', 'pdf', 'png', 'txt'
   ];
+  late final SplitViewController _splitViewController;
 
   @override
   void initState() {
     super.initState();
+    _splitViewController = SplitViewController(
+      weights: [0.17, 0.58, 0.25],
+      limits: [
+        WeightLimit(min: 0.14), // left sidebar
+        WeightLimit(min: 0.36), // center panel
+        WeightLimit(min: 0.25), // right chat
+      ],
+    );
     _loadRecentFiles();
+  }
+
+  @override
+  void dispose() {
+    _splitViewController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRecentFiles() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await getApplicationSupportDirectory();
       final file = File('${directory.path}/recent_files.json');
       if (await file.exists()) {
         final contents = await file.readAsString();
@@ -60,7 +76,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _saveRecentFiles() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await getApplicationSupportDirectory();
       final file = File('${directory.path}/recent_files.json');
       await file.writeAsString(jsonEncode(_recentFiles));
     } catch (e) {
@@ -70,7 +86,7 @@ class _HomePageState extends State<HomePage> {
 
   void _updateSelectedFile(String name, String? ext, String path) {
     setState(() {
-      _recentFiles.removeWhere((element) => element['path'] == path);  // Remove duplicate recent files
+      _recentFiles.removeWhere((element) => element['path'] == path);  // remove duplicate recent files
       _recentFiles.insert(0, {
         'name': name,
         'extension': ext,
@@ -84,6 +100,20 @@ class _HomePageState extends State<HomePage> {
       if (_recentFiles.length > 10) {
         _recentFiles.removeRange(10, _recentFiles.length);
       }
+    });
+    _saveRecentFiles();
+  }
+
+  void _removeRecentFile(String path) {
+    setState(() {
+      _recentFiles.removeWhere((element) => element['path'] == path);
+    });
+    _saveRecentFiles();
+  }
+
+  void _clearAllRecentFiles() {
+    setState(() {
+      _recentFiles.clear();
     });
     _saveRecentFiles();
   }
@@ -120,19 +150,26 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
+      body: SplitView(
+        viewMode: SplitViewMode.Horizontal,
+        gripSize: 3,
+        gripColor: Colors.grey.shade200,
+        gripColorActive: Colors.grey.shade400,
+        controller: _splitViewController,
         children: [
-          LeftSidebar(recentFiles: _recentFiles),
-          Expanded(
-            child: CenterPanel(
-              onPickFile: _pickFile,
-              onDropFile: _handleDroppedFile,
-              hasSelectedFile: _hasSelectedFile,
-              selectedFileName: _selectedFileName,
-              selectedFilePath: _selectedFilePath,
-              selectedFileExtension: _selectedFileExtension,
-              onClearFile: _clearSelectedFile,
-            ),
+          LeftSidebar(
+            recentFiles: _recentFiles,
+            onRemoveRecentFile: _removeRecentFile,
+            onClearRecentFiles: _clearAllRecentFiles,
+          ),
+          CenterPanel(
+            onPickFile: _pickFile,
+            onDropFile: _handleDroppedFile,
+            hasSelectedFile: _hasSelectedFile,
+            selectedFileName: _selectedFileName,
+            selectedFilePath: _selectedFilePath,
+            selectedFileExtension: _selectedFileExtension,
+            onClearFile: _clearSelectedFile,
           ),
           const RightChat(),
         ],

@@ -144,6 +144,30 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  http:
+    dependency: "direct main"
+    description:
+      name: http
+      sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.0"
+  http_parser:
+    dependency: transitive
+    description:
+      name: http_parser
+      sha256: "178d74305e7866013777bab2c3d8726205dc5a4dd935297175b19a23a2e66571"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.2"
+  json_annotation:
+    dependency: transitive
+    description:
+      name: json_annotation
+      sha256: cb09e7dac6210041fad964ed7fbee004f14258b4eca4040f72d1234062ace4c8
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.11.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -288,6 +312,46 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  screen_retriever:
+    dependency: transitive
+    description:
+      name: screen_retriever
+      sha256: "570dbc8e4f70bac451e0efc9c9bb19fa2d6799a11e6ef04f946d7886d2e23d0c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
+  screen_retriever_linux:
+    dependency: transitive
+    description:
+      name: screen_retriever_linux
+      sha256: f7f8120c92ef0784e58491ab664d01efda79a922b025ff286e29aa123ea3dd18
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
+  screen_retriever_macos:
+    dependency: transitive
+    description:
+      name: screen_retriever_macos
+      sha256: "71f956e65c97315dd661d71f828708bd97b6d358e776f1a30d5aa7d22d78a149"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
+  screen_retriever_platform_interface:
+    dependency: transitive
+    description:
+      name: screen_retriever_platform_interface
+      sha256: ee197f4581ff0d5608587819af40490748e1e39e648d7680ecf95c05197240c0
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
+  screen_retriever_windows:
+    dependency: transitive
+    description:
+      name: screen_retriever_windows
+      sha256: "449ee257f03ca98a57288ee526a301a430a344a161f9202b4fcc38576716fe13"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -357,6 +421,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.1"
+  split_view:
+    dependency: "direct main"
+    description:
+      name: split_view
+      sha256: "724968694ca8becaa58d5c6392caf3ca9d83548514aaa6d7c59bc41f1c1aa042"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.2"
   stack_trace:
     dependency: transitive
     description:
@@ -397,6 +469,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.7"
+  typed_data:
+    dependency: transitive
+    description:
+      name: typed_data
+      sha256: f9049c039ebfeb4cf7a7104a675823cd72dba8297f264b6637062516699fa006
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.0"
   vector_math:
     dependency: transitive
     description:
@@ -429,14 +509,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.15.0"
-  window_size:
+  window_manager:
     dependency: "direct main"
     description:
-      name: window_size
-      sha256: "8ba77a3df7bd686e60b21e699e60e1b103e6515950954b46c4fb6f513586e278"
+      name: window_manager
+      sha256: "7eb6d6c4164ec08e1bf978d6e733f3cebe792e2a23fb07cbca25c2872bfdbdcd"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0"
+    version: "0.5.1"
   xdg_directories:
     dependency: transitive
     description:

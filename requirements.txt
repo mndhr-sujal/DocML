@@ -1,4 +1,4 @@
-paddlepaddle==3.2.2
+paddlepaddle==3.2.2  # use paddlepaddle gpu for gpu inference
 paddlex[ocr]==3.3.2
 pypandoc
 Pillow
@@ -7,3 +7,12 @@ htmlmin4
 py7zr
 PyMuPDF
 pylatexenc
+llama-cpp-python
+huggingface-hub
+chromadb
+uvicorn
+beautifulsoup4
+python-docx
+fastapi
+langchain_text_splitters
+pydantic
