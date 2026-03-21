@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download
@@ -7,7 +8,7 @@ def download_models():
     # Set directory for models
     models_dir = Path(__file__).resolve().parent.parent / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
-
+    exists = 0
     models = [
         {
             "repo": "dinab/multilingual-e5-base-Q4_K_M-GGUF",
@@ -34,10 +35,12 @@ def download_models():
                 local_dir=str(models_dir),
             )
             print(f"{m['file']} ({m['size']}) downloaded\n")
+            exists = 1
         except Exception as e:
             print(f"Failed to download {m['file']}: {e}")
 
     print("All downloads finished!")
+    sys.exit(exists)
 
 
 if __name__ == "__main__":

@@ -66,11 +66,18 @@ class _RightChatState extends State<RightChat> {
       });
       try {
         final data = await _backend.uploadFile(file, name);
-        _addMsg(
-          MessageSender.ai,
-          'Ingested "$name" (${data['chunks_ingested']} chunks).',
-          [name],
-        );
+        final chunks = data['chunks_ingested'] ?? 0;
+        if (chunks == 0) {
+          _addMsg(
+            MessageSender.ai,
+            'No text could be extracted from "$name".',
+            [name],
+          );
+        } else {
+          _addMsg(MessageSender.ai, 'Ingested "$name" ($chunks chunks).', [
+            name,
+          ]);
+        }
       } catch (e) {
         _addMsg(MessageSender.ai, 'Upload error: $e');
       }
@@ -158,9 +165,12 @@ class _RightChatState extends State<RightChat> {
   @override
   Widget build(BuildContext context) {
     final showLoading = _processing || _startingModels;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SelectionArea(
       child: Container(
-        color: const Color.fromARGB(255, 241, 233, 253),
+        color: isDark
+            ? Theme.of(context).colorScheme.surface
+            : const Color(0xFFF1E9FD),
         child: Column(
           children: [
             ChatHeader(
@@ -169,18 +179,26 @@ class _RightChatState extends State<RightChat> {
               onDownload: _handleDownload,
               onClear: showLoading
                   ? null
-                  : () {
-                      _backend.dispose();
-                      setState(() {
-                        _messages.clear();
-                        _messages.add(
-                          ChatMessage(
-                            sender: MessageSender.ai,
-                            text:
-                                'Hello! Upload a document or ask me a question.',
-                          ),
-                        );
-                      });
+                  : () async {
+                      try {
+                        await _backend.clearDatabase();
+                        setState(() {
+                          _messages.clear();
+                          _messages.add(
+                            ChatMessage(
+                              sender: MessageSender.ai,
+                              text:
+                                  'Hello! Upload a document or ask me a question.',
+                            ),
+                          );
+                        });
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to clear: $e')),
+                          );
+                        }
+                      }
                     },
             ),
             Expanded(
@@ -222,7 +240,6 @@ class ChatHeader extends StatelessWidget {
     padding: const EdgeInsets.all(16),
     child: Row(
       children: [
-        const CircleAvatar(child: Icon(Icons.chat)),
         const SizedBox(width: 12),
         const Expanded(
           child: Text(
@@ -235,7 +252,7 @@ class ChatHeader extends StatelessWidget {
           iconSize: 20.0,
           onPressed: onClear,
           tooltip: 'Clear Chat',
-          color: Colors.grey[800],
+          color: Colors.red.shade400,
         ),
         Stack(
           alignment: Alignment.center,
@@ -255,7 +272,9 @@ class ChatHeader extends StatelessWidget {
               ),
               onPressed: onDownload,
               tooltip: isDownloading ? 'Cancel Download' : 'Download Models',
-              color: isDownloading ? Colors.red[700] : Colors.green[700],
+              color: isDownloading
+                  ? Colors.red.shade700
+                  : Colors.green.shade700,
             ),
           ],
         ),
@@ -263,7 +282,7 @@ class ChatHeader extends StatelessWidget {
           icon: const Icon(Icons.upload_file),
           onPressed: onUpload,
           tooltip: 'Upload',
-          color: Colors.blue[700],
+          color: Colors.blue.shade700,
         ),
       ],
     ),
@@ -292,6 +311,9 @@ class ChatInput extends StatelessWidget {
           child: TextField(
             controller: controller,
             enabled: !isProcessing,
+            minLines: 1,
+            maxLines: 3,
+            keyboardType: TextInputType.multiline,
             decoration: const InputDecoration(
               hintText: 'Ask about documents',
               border: OutlineInputBorder(
@@ -299,7 +321,11 @@ class ChatInput extends StatelessWidget {
               ),
               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
-            onSubmitted: onSend,
+            onSubmitted: (val) {
+              if (val.trim().isNotEmpty) {
+                onSend(val);
+              }
+            },
           ),
         ),
         const SizedBox(width: 8),
@@ -329,7 +355,7 @@ class LoadingIndicator extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue[100],
+        color: Colors.blue.shade400,
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Row(
@@ -363,7 +389,7 @@ class MessageBubble extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         constraints: const BoxConstraints(maxWidth: 240),
         decoration: BoxDecoration(
-          color: isAI ? Colors.blue[100] : Colors.green[100],
+          color: Colors.blue.shade400,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -373,7 +399,7 @@ class MessageBubble extends StatelessWidget {
             if (isAI && message.sources.isNotEmpty) ...[
               const Divider(height: 16),
               const Text(
-                '📚 Sources:',
+                'Sources:',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
               ...message.sources.map(
@@ -381,7 +407,7 @@ class MessageBubble extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 8, top: 2),
                   child: SelectableText(
                     '• $s',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                   ),
                 ),
               ),

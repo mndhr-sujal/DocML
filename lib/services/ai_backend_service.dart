@@ -21,6 +21,14 @@ class AiBackendService {
     }
   }
 
+  String _getPythonPath() {
+    if (Platform.isWindows) {
+      return 'python';
+    } else {
+      return 'python3';
+    }
+  }
+
   Future<bool> ensureRunning({Function(String)? onStatusUpdate}) async {
     if (await isHealthy()) return true;
 
@@ -29,7 +37,8 @@ class AiBackendService {
     );
 
     try {
-      _pythonProcess = await Process.start('python', ['lib/chatbot.py']);
+      final pythonPath = _getPythonPath();
+      _pythonProcess = await Process.start(pythonPath, ['lib/chatbot.py']);
 
       // Prevent full buffer
       _pythonProcess!.stdout.drain();
@@ -86,8 +95,30 @@ class AiBackendService {
     }
   }
 
+  Future<void> clearDatabase() async {
+    if (!await isHealthy()) return;
+    try {
+      final response = await http.post(Uri.parse('$_apiUrl/clear'));
+      if (response.statusCode != 200) {
+        throw Exception('Failed to clear database: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error clearing database: $e');
+    }
+  }
+
   Future<Process> downloadModels() async {
-    return Process.start('python', ['lib/download_models.py']);
+    final pythonPath = _getPythonPath();
+    return Process.start(pythonPath, ['lib/download_models.py']);
+  }
+
+  Future<ProcessResult?> runPythonScript(String script, List<String> args) async {
+    try {
+      final pythonPath = _getPythonPath();
+      return await Process.run(pythonPath, [script, ...args]);
+    } catch (e) {
+      return null;
+    }
   }
 
   void dispose() {

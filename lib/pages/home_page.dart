@@ -10,7 +10,8 @@ import '../widgets/center_panel.dart';
 import '../widgets/right_chat.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final ValueNotifier<ThemeMode> themeMode;
+  const HomePage({super.key, required this.themeMode});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -25,7 +26,19 @@ class _HomePageState extends State<HomePage> {
   String? _selectedFilePath;
 
   static const List<String> _supportedExtensions = [
-    'bmp', 'docx', 'epub', 'htm', 'html', 'jpeg', 'jpg', 'markdown', 'md', 'odt', 'pdf', 'png', 'txt'
+    'bmp',
+    'docx',
+    'epub',
+    'htm',
+    'html',
+    'jpeg',
+    'jpg',
+    'markdown',
+    'md',
+    'odt',
+    'pdf',
+    'png',
+    'txt',
   ];
   late final SplitViewController _splitViewController;
 
@@ -86,20 +99,17 @@ class _HomePageState extends State<HomePage> {
 
   void _updateSelectedFile(String name, String? ext, String path) {
     setState(() {
-      _recentFiles.removeWhere((element) => element['path'] == path);  // remove duplicate recent files
-      _recentFiles.insert(0, {
-        'name': name,
-        'extension': ext,
-        'path': path,
-      });
+      _recentFiles.removeWhere(
+        (element) => element['path'] == path,
+      ); // remove duplicate recent files
+      _recentFiles.insert(0, {'name': name, 'extension': ext, 'path': path});
       _selectedFileName = name;
       _selectedFileExtension = ext;
       _selectedFilePath = path;
       _hasSelectedFile = true;
-      // max length of recent files is 10
       if (_recentFiles.length > 10) {
         _recentFiles.removeRange(10, _recentFiles.length);
-      }
+      } // max length of recent files is 10
     });
     _saveRecentFiles();
   }
@@ -153,14 +163,19 @@ class _HomePageState extends State<HomePage> {
       body: SplitView(
         viewMode: SplitViewMode.Horizontal,
         gripSize: 3,
-        gripColor: Colors.grey.shade200,
-        gripColorActive: Colors.grey.shade400,
+        gripColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade900
+            : Colors.grey.shade200,
+        gripColorActive: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade700
+            : Colors.grey.shade400,
         controller: _splitViewController,
         children: [
           LeftSidebar(
             recentFiles: _recentFiles,
             onRemoveRecentFile: _removeRecentFile,
             onClearRecentFiles: _clearAllRecentFiles,
+            themeMode: widget.themeMode,
           ),
           CenterPanel(
             onPickFile: _pickFile,

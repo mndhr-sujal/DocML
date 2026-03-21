@@ -21,6 +21,7 @@ pipeline = create_pipeline(
 )
 
 output_path = Path("./output")
+output_path.mkdir(parents=True, exist_ok=True)
 
 output = pipeline.predict(
     input=input_file,

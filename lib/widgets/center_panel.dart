@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:open_filex/open_filex.dart';
 import 'dart:io';
+import '../services/ai_backend_service.dart';
 
 class CenterPanel extends StatefulWidget {
   final Future<void> Function() onPickFile;
@@ -75,16 +76,6 @@ class _CenterPanelState extends State<CenterPanel> {
     ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
-  Future<ProcessResult?> _runPython(String script, List<String> args) async {
-    try {
-      return await Process.run('python', [script, ...args]);
-    } catch (e) {
-      debugPrint("Error running $script: $e");
-      _showSnackBar("Error: $e", Colors.red);
-      return null;
-    }
-  }
-
   IconData _getFileIcon() {
     final ext = widget.selectedFileExtension?.toLowerCase();
     switch (ext) {
@@ -154,7 +145,12 @@ class _CenterPanelState extends State<CenterPanel> {
                     const SizedBox(height: 10),
                     Text(
                       widget.selectedFileName ?? '',
-                      style: const TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      ),
                     ),
                     const SizedBox(height: 5),
                     const Text(
@@ -202,19 +198,24 @@ class _CenterPanelState extends State<CenterPanel> {
                                 size: 40,
                                 color: showDragging
                                     ? Colors.blue
-                                    : Colors.black,
+                                    : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
                               ),
                               const SizedBox(height: 10),
-                              const Text(
+                              Text(
                                 "Select/Drag and drop your file",
-                                style: TextStyle(fontSize: 16),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                                ),
                               ),
                               const SizedBox(height: 5),
                               Text(
                                 showDragging
                                     ? "Release to upload"
                                     : "Click to choose file",
-                                style: const TextStyle(color: Colors.grey),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                ),
                               ),
                             ],
                           ),
@@ -240,7 +241,7 @@ class _CenterPanelState extends State<CenterPanel> {
                     onPressed: () async {
                       debugPrint("Compress clicked");
                       _showSnackBar("Compressing file...", Colors.grey);
-                      final result = await _runPython('lib/compress.py', [
+                      final result = await AiBackendService().runPythonScript('lib/compress.py', [
                         widget.selectedFilePath!,
                       ]);
                       if (result != null) {
@@ -252,11 +253,14 @@ class _CenterPanelState extends State<CenterPanel> {
                         } else {
                           _showSnackBar("Compression failed!", Colors.red);
                         }
+                      } 
+                      else {
+                        _showSnackBar("Error running compress.py", Colors.red);
                       }
                     },
                     style: ElevatedButton.styleFrom(
                       fixedSize: const Size(130, 55),
-                      backgroundColor: const Color.fromARGB(255, 227, 220, 228),
+                      backgroundColor: const Color(0xFFE3DCE4),
                     ),
                     child: const Text(
                       "Compress",
@@ -276,14 +280,13 @@ class _CenterPanelState extends State<CenterPanel> {
                           debugPrint("OCR clicked");
                           _showSnackBar("Running OCR...", Colors.grey);
 
-                          final ocrArgs = [widget.selectedFilePath!];
-                          if (enableTableRecognition) ocrArgs.add('--table');
-                          if (enableFormulaRecognition)
-                            ocrArgs.add('--formula');
-
-                          final ocrResult = await _runPython(
+                          final ocrResult = await AiBackendService().runPythonScript(
                             'lib/ocr.py',
-                            ocrArgs,
+                            [
+                              widget.selectedFilePath!,
+                              if (enableTableRecognition) '--table',
+                              if (enableFormulaRecognition) '--formula',
+                            ],
                           );
 
                           if (ocrResult == null || ocrResult.exitCode != 0) {
@@ -298,7 +301,7 @@ class _CenterPanelState extends State<CenterPanel> {
                             "Running reconstruction...",
                             Colors.grey,
                           );
-                          final reconstructResult = await _runPython(
+                          final reconstructResult = await AiBackendService().runPythonScript(
                             'lib/reconstruct.py',
                             [widget.selectedFilePath!],
                           );
@@ -320,12 +323,7 @@ class _CenterPanelState extends State<CenterPanel> {
                         },
                         style: ElevatedButton.styleFrom(
                           fixedSize: const Size(130, 55),
-                          backgroundColor: const Color.fromARGB(
-                            255,
-                            227,
-                            220,
-                            228,
-                          ),
+                          backgroundColor: const Color(0xFFE3DCE4),
                         ),
                         child: const Text(
                           "OCR",
@@ -348,10 +346,12 @@ class _CenterPanelState extends State<CenterPanel> {
                               selected: enableTableRecognition,
                               onSelected: (val) =>
                                   setState(() => enableTableRecognition = val),
-                              backgroundColor: Colors.blue.shade50,
-                              selectedColor: Colors.blue.shade200,
+                              backgroundColor: const Color(0xFFE3DCE4),
+                              selectedColor: const Color(0xFFC4B5D9),
+                              labelStyle: const TextStyle(color: Colors.black),
+                              checkmarkColor: Colors.black,
                             ),
-                            const SizedBox(height: 8),
+                             const SizedBox(height: 8),
                             FilterChip(
                               label: const Center(
                                 child: Text(
@@ -363,8 +363,10 @@ class _CenterPanelState extends State<CenterPanel> {
                               onSelected: (val) => setState(
                                 () => enableFormulaRecognition = val,
                               ),
-                              backgroundColor: Colors.blue.shade50,
-                              selectedColor: Colors.blue.shade200,
+                              backgroundColor: const Color(0xFFE3DCE4),
+                              selectedColor: const Color(0xFFC4B5D9),
+                              labelStyle: const TextStyle(color: Colors.black),
+                              checkmarkColor: Colors.black,
                             ),
                           ],
                         ),
@@ -378,9 +380,9 @@ class _CenterPanelState extends State<CenterPanel> {
                   onPressed: widget.onClearFile,
                   style: ElevatedButton.styleFrom(
                     fixedSize: const Size(130, 55),
-                    backgroundColor: const Color.fromARGB(255, 255, 185, 184),
+                    backgroundColor: const Color(0xFFE3DCE4),
                   ),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close, color: Colors.black),
                   label: const Text(
                     "Remove",
                     style: TextStyle(color: Colors.black),
@@ -407,13 +409,13 @@ class _CenterPanelState extends State<CenterPanel> {
 
     return PopupMenuButton<String>(
       offset: const Offset(-10, 60),
-      color: const Color.fromARGB(255, 255, 255, 255),
+      color: Colors.white,
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       onSelected: (value) async {
         debugPrint("Selected format: $value");
         _showSnackBar("Converting to $value...", Colors.grey);
-        final result = await _runPython('lib/convert.py', [
+        final result = await AiBackendService().runPythonScript('lib/convert.py', [
           widget.selectedFilePath!,
           value,
         ]);
@@ -440,7 +442,7 @@ class _CenterPanelState extends State<CenterPanel> {
         width: 130,
         height: 55,
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 227, 220, 228),
+          color: const Color(0xFFE3DCE4),
           borderRadius: BorderRadius.circular(55),
         ),
         child: const Row(

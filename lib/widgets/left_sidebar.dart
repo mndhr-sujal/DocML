@@ -5,12 +5,14 @@ class LeftSidebar extends StatelessWidget {
   final List<Map<String, dynamic>> recentFiles;
   final Function(String path)? onRemoveRecentFile;
   final VoidCallback? onClearRecentFiles;
+  final ValueNotifier<ThemeMode> themeMode;
 
   const LeftSidebar({
     super.key,
     required this.recentFiles,
     this.onRemoveRecentFile,
     this.onClearRecentFiles,
+    required this.themeMode,
   });
 
   IconData _getIcon(String? extension) {
@@ -28,15 +30,39 @@ class LeftSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: const Color.fromARGB(255, 196, 181, 217),
+      color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFC4B5D9),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "DocML",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "DocML",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: themeMode,
+                builder: (context, mode, _) {
+                  return IconButton(
+                    onPressed: () {
+                      themeMode.value = mode == ThemeMode.light
+                          ? ThemeMode.dark
+                          : ThemeMode.light;
+                    },
+                    icon: Icon(
+                      mode == ThemeMode.dark
+                          ? Icons.light_mode
+                          : Icons.dark_mode,
+                    ),
+                    tooltip: "Toggle Theme",
+                  );
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 30),
           Row(
@@ -68,7 +94,7 @@ class LeftSidebar extends StatelessWidget {
                     child: Text(
                       "No recent files",
                       style: TextStyle(
-                        color: Color.fromARGB(255, 110, 110, 110),
+                        color: Color(0xFF6E6E6E),
                       ),
                     ),
                   )

@@ -1,5 +1,6 @@
 import io
 import os
+import shutil
 import threading
 import time
 from typing import Any, List, Optional
@@ -8,6 +9,7 @@ import chromadb
 import fitz  # PyMuPDF
 import uvicorn
 from bs4 import BeautifulSoup
+from chromadb.config import Settings  # satisfying linter smh
 from docx import Document
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,25 +71,44 @@ class Chatbot:
         )
 
         # Setup chromaDB (vector storage)
-        client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
-        try:
-            client.delete_collection("articles_demo")
-        except Exception:
-            pass
+        print("Cleaning up database context...")
+        if os.path.exists(CHROMA_DB_DIR):
+            try:
+                shutil.rmtree(CHROMA_DB_DIR)
+            except Exception as e:
+                print(f"Startup cleanup failed: {e}")
 
-        self.collection = client.get_or_create_collection("articles_demo")
+        self.chroma_client = chromadb.PersistentClient(
+            path=CHROMA_DB_DIR, settings=Settings(allow_reset=True)
+        )
+        self.collection: Any = None
+        self.clear_db()
+
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=300, chunk_overlap=30, separators=["."]
+            chunk_size=750, chunk_overlap=100, separators=["\n\n", ".", "।", "?", "!"]
         )
 
         self._register_routes()
+
+    def clear_db(self):
+        try:
+            self.chroma_client.reset()
+        except Exception as e:
+            print(f"Reset failed: {e}. Falling back to delete_collection.")
+            try:
+                self.chroma_client.delete_collection("articles_demo")
+            except Exception:
+                pass
+        self.collection = self.chroma_client.get_or_create_collection("articles_demo")
 
     def _register_routes(self):
         @self.app.post("/ingest")
         async def ingest(request: IngestRequest):
             return {
                 "status": "success",
-                "chunks": self.ingest_text(request.text, request.title, request.doc_id),
+                "chunks_ingested": self.ingest_text(
+                    request.text, request.title, request.doc_id
+                ),
             }
 
         @self.app.post("/ingest-file")
@@ -102,7 +123,7 @@ class Chatbot:
             content = self.extract_text(file_bytes, file_ext)
             return {
                 "status": "success",
-                "chunks": self.ingest_text(
+                "chunks_ingested": self.ingest_text(
                     content, title, doc_id, {"source": filename}
                 ),
             }
@@ -111,6 +132,11 @@ class Chatbot:
         async def chat(request: ChatRequest):
             answer, sources = self.generate_answer(request.query)
             return ChatResponse(answer=answer, sources=sources)
+
+        @self.app.post("/clear")
+        async def clear():
+            self.clear_db()
+            return {"status": "success", "message": "Database cleared"}
 
         @self.app.get("/health")
         async def health():
@@ -181,12 +207,20 @@ class Chatbot:
                 sources = list(
                     set(str(m.get("title", "Unknown")) for m in metadatas[0] if m)
                 )
-            prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-Answer strictly based on context. If there is not sufficient information in the context, say not enough information. Dont say according to the context.
-Context: {context}<|eot_id|><|start_header_id|>user<|end_header_id|>
-Question: {query}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+            prompt = f"""
+You are a helpful AI assistant.
+Answer strictly based on the context below. Do not use words like from the context.
+If the context does not contain enough information, respond with: Not enough information in the provided documents.
+
+Context: {context.strip()}
+Question: {query}
+
+Answer:
+"""
             response = self.llm(
-                prompt, max_tokens=512, temperature=0.1, stop=["<|eot_id|>"]
+                prompt,
+                max_tokens=512,
+                temperature=0.1,
             )
             if isinstance(response, dict):
                 answer = str(response["choices"][0]["text"]).strip()
@@ -206,6 +240,12 @@ def monitor_parent():
     ppid = os.getppid()
     while True:
         if os.getppid() != ppid:
+            # Final cleanup on exit
+            if os.path.exists(CHROMA_DB_DIR):
+                try:
+                    shutil.rmtree(CHROMA_DB_DIR)
+                except FileNotFoundError:
+                    pass
             os._exit(0)
         time.sleep(2)
 

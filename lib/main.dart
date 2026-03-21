@@ -27,17 +27,48 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final ValueNotifier<ThemeMode> _themeMode = ValueNotifier(ThemeMode.light);
+
   @override
   void dispose() {
     AiBackendService().dispose();
+    _themeMode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: HomePage(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: _themeMode,
+      builder: (context, mode, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'DocML',
+          themeMode: mode,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFFC4B5D9),
+              brightness: Brightness.light,
+            ).copyWith(
+              surfaceVariant: const Color(0xFFC4B5D9),
+              secondaryContainer: const Color(0xFFF1E9FD),
+            ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFFC4B5D9),
+              brightness: Brightness.dark,
+            ).copyWith(
+              surface: const Color(0xFF1E1E1E),
+              surfaceContainerLowest: Colors.black,
+            ),
+            scaffoldBackgroundColor: Colors.black,
+          ),
+          home: HomePage(themeMode: _themeMode),
+        );
+      },
     );
   }
 }
