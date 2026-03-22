@@ -198,14 +198,21 @@ class _CenterPanelState extends State<CenterPanel> {
                                 size: 40,
                                 color: showDragging
                                     ? Colors.blue
-                                    : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+                                    : (Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black),
                               ),
                               const SizedBox(height: 10),
                               Text(
                                 "Select/Drag and drop your file",
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black,
                                 ),
                               ),
                               const SizedBox(height: 5),
@@ -213,9 +220,7 @@ class _CenterPanelState extends State<CenterPanel> {
                                 showDragging
                                     ? "Release to upload"
                                     : "Click to choose file",
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                ),
+                                style: const TextStyle(color: Colors.grey),
                               ),
                             ],
                           ),
@@ -241,9 +246,10 @@ class _CenterPanelState extends State<CenterPanel> {
                     onPressed: () async {
                       debugPrint("Compress clicked");
                       _showSnackBar("Compressing file...", Colors.grey);
-                      final result = await AiBackendService().runPythonScript('lib/compress.py', [
-                        widget.selectedFilePath!,
-                      ]);
+                      final result = await AiBackendService().runPythonScript(
+                        'lib/compress.py',
+                        [widget.selectedFilePath!],
+                      );
                       if (result != null) {
                         if (result.exitCode == 0) {
                           _showSnackBar(
@@ -253,8 +259,7 @@ class _CenterPanelState extends State<CenterPanel> {
                         } else {
                           _showSnackBar("Compression failed!", Colors.red);
                         }
-                      } 
-                      else {
+                      } else {
                         _showSnackBar("Error running compress.py", Colors.red);
                       }
                     },
@@ -280,14 +285,12 @@ class _CenterPanelState extends State<CenterPanel> {
                           debugPrint("OCR clicked");
                           _showSnackBar("Running OCR...", Colors.grey);
 
-                          final ocrResult = await AiBackendService().runPythonScript(
-                            'lib/ocr.py',
-                            [
-                              widget.selectedFilePath!,
-                              if (enableTableRecognition) '--table',
-                              if (enableFormulaRecognition) '--formula',
-                            ],
-                          );
+                          final ocrResult = await AiBackendService()
+                              .runPythonScript('lib/ocr.py', [
+                                widget.selectedFilePath!,
+                                if (enableTableRecognition) '--table',
+                                if (enableFormulaRecognition) '--formula',
+                              ]);
 
                           if (ocrResult == null || ocrResult.exitCode != 0) {
                             if (ocrResult != null) {
@@ -301,10 +304,12 @@ class _CenterPanelState extends State<CenterPanel> {
                             "Running reconstruction...",
                             Colors.grey,
                           );
-                          final reconstructResult = await AiBackendService().runPythonScript(
-                            'lib/reconstruct.py',
-                            [widget.selectedFilePath!],
-                          );
+                          final reconstructResult = await AiBackendService()
+                              .runPythonScript('lib/reconstruct.py', [
+                                widget.selectedFilePath!,
+                                if (enableTableRecognition) '--table',
+                                if (enableFormulaRecognition) '--formula',
+                              ]);
 
                           if (reconstructResult != null) {
                             if (reconstructResult.exitCode == 0) {
@@ -351,7 +356,7 @@ class _CenterPanelState extends State<CenterPanel> {
                               labelStyle: const TextStyle(color: Colors.black),
                               checkmarkColor: Colors.black,
                             ),
-                             const SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             FilterChip(
                               label: const Center(
                                 child: Text(
@@ -415,10 +420,10 @@ class _CenterPanelState extends State<CenterPanel> {
       onSelected: (value) async {
         debugPrint("Selected format: $value");
         _showSnackBar("Converting to $value...", Colors.grey);
-        final result = await AiBackendService().runPythonScript('lib/convert.py', [
-          widget.selectedFilePath!,
-          value,
-        ]);
+        final result = await AiBackendService().runPythonScript(
+          'lib/convert.py',
+          [widget.selectedFilePath!, value],
+        );
 
         if (result != null) {
           if (result.exitCode == 0) {
@@ -449,7 +454,7 @@ class _CenterPanelState extends State<CenterPanel> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text("File Format", style: TextStyle(color: Colors.black)),
-              
+
             Icon(Icons.arrow_drop_down, color: Colors.black),
           ],
         ),

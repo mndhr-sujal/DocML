@@ -1,3 +1,4 @@
+import re
 import sys
 import time
 from pathlib import Path
@@ -13,13 +14,24 @@ input_file = sys.argv[1]
 use_table = "--table" in sys.argv
 use_formula = "--formula" in sys.argv
 
-pipeline_path = str(Path(__file__).parent / "PP-StructureV3.yaml")
-pipeline = create_pipeline(
-    pipeline=pipeline_path,
-    use_table_recognition=use_table,
-    use_formula_recognition=use_formula,
+pipeline_path = Path(__file__).parent / "PP-StructureV3.yaml"
+yaml_content = pipeline_path.read_text(encoding="utf-8")
+yaml_content = re.sub(
+    r"^[ \t]*use_table_recognition:\s*(True|False)",
+    f"use_table_recognition: {use_table}",
+    yaml_content,
+    flags=re.MULTILINE,
+)
+yaml_content = re.sub(
+    r"^[ \t]*use_formula_recognition:\s*(True|False)",
+    f"use_formula_recognition: {use_formula}",
+    yaml_content,
+    flags=re.MULTILINE,
 )
 
+pipeline_path.write_text(yaml_content, encoding="utf-8")
+
+pipeline = create_pipeline(pipeline=str(pipeline_path))
 output_path = Path("./output")
 output_path.mkdir(parents=True, exist_ok=True)
 

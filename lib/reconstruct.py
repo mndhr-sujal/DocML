@@ -1,78 +1,36 @@
 import base64
 import html
 import json
-import re
 import shutil
 import sys
 from pathlib import Path
+from textwrap import dedent
 
 import fitz  # PyMuPDF
-from pylatexenc.latex2text import LatexNodes2Text
-
-
-class LatexConverter:
-    _latex_parser = LatexNodes2Text()
-
-    @staticmethod
-    def normalize(latex_str):
-        if not latex_str:
-            return latex_str
-
-        def fix_mathtt(match):
-            content = match.group(1).replace(" ", "")
-            return r"\mathrm{" + content + "}"
-
-        latex_str = re.sub(r"\\mathtt\{([^}]+)\}", fix_mathtt, latex_str)
-        latex_str = latex_str.replace("=", " = ")
-        latex_str = re.sub(r"\s+=\s+", " = ", latex_str)
-        latex_str = latex_str.replace(r"\boldmath", r"\mathbf").replace(
-            r"\bf", r"\mathbf"
-        )
-        latex_str = re.sub(
-            r"\\frac\s*\\([a-zA-Z]+)(?![a-zA-Z{])", r"\\frac{\\\1}", latex_str
-        )
-        latex_str = re.sub(r"\\frac\s*\\([^a-zA-Z{])", r"\\frac{\\\1}", latex_str)
-        latex_str = re.sub(
-            r"\\frac\s*([a-zA-Z0-9])(?![a-zA-Z0-9{])", r"\\frac{\1}", latex_str
-        )
-        return latex_str
-
-    # Convert latex to unicode
-    @staticmethod
-    def to_unicode(text_content):
-        if not text_content:
-            return text_content
-        text_content = LatexConverter.normalize(text_content)
-
-        inline_math_pattern = r"\$(.*?)\$"
-        if re.search(inline_math_pattern, text_content):
-
-            def replacement(match):
-                try:
-                    return LatexConverter._latex_parser.latex_to_text(match.group(1))
-                except Exception:
-                    return match.group(0)
-
-            text_content = re.sub(inline_math_pattern, replacement, text_content)
-
-        if "\\" in text_content or "_{" in text_content or "^{" in text_content:
-            input_str = (
-                f"${text_content}$"
-                if "{" in text_content and "\\" not in text_content
-                else text_content
-            )
-            try:
-                return LatexConverter._latex_parser.latex_to_text(input_str)
-            except ImportError:
-                pass
-        return text_content
 
 
 class BlockRenderer:
-    def __init__(self, scale, image_map, imgs_dir):
+    def __init__(
+        self,
+        scale,
+        offset_x,
+        offset_y,
+        min_x,
+        min_y,
+        image_map,
+        imgs_dir,
+        use_table=False,
+        use_formula=False,
+    ):
         self.scale = scale
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+        self.min_x = min_x
+        self.min_y = min_y
         self.image_map = image_map
         self.imgs_dir = imgs_dir
+        self.use_table = use_table
+        self.use_formula = use_formula
 
     # Filter out text lines that reside inside images or tables
     def is_overlapping(self, line_rect, exclusion_zones):
@@ -88,122 +46,120 @@ class BlockRenderer:
                     return True
         return False
 
-    def render_formula(self, block):
-        label = block.get("block_label")
-        bbox = block.get("block_bbox")
-        content = block.get("block_content", "").strip().strip("$")
-        x1, y1, x2, y2 = [c * self.scale for c in bbox]
-        bw, bh = x2 - x1, y2 - y1
-
-        # Generate unicode text for math blocks
-        try:
-            unicode_text = LatexConverter._latex_parser.latex_to_text(
-                LatexConverter.normalize(content)
-            )
-            fs = max(8, min(bh * 0.8, (bw / (len(unicode_text) or 1)) * 1.8))
-            style = "display:flex;align-items:center;justify-content:center;width:100%;height:100%;"
-            inner = f"<div style='{style} font-size:{fs}pt;'>{html.escape(unicode_text)}</div>"
-            return f"<div class='block cls_{label}' style='left:{x1}pt;top:{y1}pt;width:{bw}pt;height:{bh}pt;'><span class='block-label'>{label}</span>{inner}</div>"
-        except ImportError:
-            return ""
-
     def render_text(self, block, all_global_lines, exclusion_zones):
         label = block.get("block_label")
         bbox = block.get("block_bbox")
-        x1, y1, x2, y2 = [c * self.scale for c in bbox]
-        bw, bh = x2 - x1, y2 - y1
+        x1, y1, x2, y2 = [coordinate * self.scale for coordinate in bbox]
+        block_width, block_height = x2 - x1, y2 - y1
+        x1_shifted = ((bbox[0] - self.min_x) * self.scale) + self.offset_x
+        y1_shifted = ((bbox[1] - self.min_y) * self.scale) + self.offset_y
 
         inner_html = ""
         matched_img = self.image_map.get(
             tuple(map(int, bbox[:4]))
         )  # check if block has image
         if matched_img:
-            img_p = self.imgs_dir / matched_img
-            if img_p.exists():
-                b64 = base64.b64encode(img_p.read_bytes()).decode()
-                inner_html = f"<img src='data:image/jpeg;base64,{b64}'>"
-                if label in ["chart", "figure", "image", "table"]:
-                    return f"<div class='block cls_{label}' style='left:{x1}pt;top:{y1}pt;width:{bw}pt;height:{bh}pt;'><span class='block-label'>{label}</span>{inner_html}</div>"
+            image_path = self.imgs_dir / matched_img
+            if image_path.exists():
+                base64_img = base64.b64encode(image_path.read_bytes()).decode()
+                image_only_labels = ["chart", "figure", "image"]
+                if not self.use_table:
+                    image_only_labels.append("table")
+                if not self.use_formula:
+                    image_only_labels.append("formula")
+
+                if label in image_only_labels:
+                    inner_html = f"<img src='data:image/jpeg;base64,{base64_img}'>"
+                    return f"<div class='block cls_{label}' style='left:{x1_shifted}pt;top:{y1_shifted}pt;width:{block_width}pt;height:{block_height}pt;'><span class='block-label'>{label}</span>{inner_html}</div>"
 
         block_lines = []
-        res = block.get("res", [])
-        if isinstance(res, list):
-            for line in res:
-                poly = line.get("dt_boxes") or line.get("box")
-                txt = line.get("text", "")
-                if poly and txt:
-                    if isinstance(poly[0], list):
-                        lx1, ly1, lx2, ly2 = (
-                            min(p[0] for p in poly),
-                            min(p[1] for p in poly),
-                            max(p[0] for p in poly),
-                            max(p[1] for p in poly),
-                        )
-                    else:
-                        lx1, ly1, lx2, ly2 = poly
-                    block_lines.append({"text": txt, "rect": [lx1, ly1, lx2, ly2]})
-
-        for gl in all_global_lines:
-            if gl["used"]:
+        for global_line in all_global_lines:
+            if global_line["used"]:
                 continue
-            gx1, gy1, gx2, gy2 = gl["rect"]
-            cx, cy = (gx1 + gx2) / 2, (gy1 + gy2) / 2
-            if bbox[0] <= cx <= bbox[2] and bbox[1] <= cy <= bbox[3]:
-                block_lines.append(gl)
-                gl["used"] = True
+            gx1, gy1, gx2, gy2 = global_line["rect"]
+            center_x, center_y = (gx1 + gx2) / 2, (gy1 + gy2) / 2
+            if bbox[0] <= center_x <= bbox[2] and bbox[1] <= center_y <= bbox[3]:
+                block_lines.append(global_line)
+                global_line["used"] = True
+
+        # Fallback to block level ocr if no global lines found
+        if not block_lines:
+            res = block.get("res", [])
+            if isinstance(res, list):
+                for line in res:
+                    poly = line.get("dt_boxes") or line.get("box")
+                    txt = line.get("text", "")
+                    if poly and txt:
+                        if isinstance(poly[0], list):
+                            lx1, ly1, lx2, ly2 = (
+                                min(p[0] for p in poly),
+                                min(p[1] for p in poly),
+                                max(p[0] for p in poly),
+                                max(p[1] for p in poly),
+                            )
+                        else:
+                            lx1, ly1, lx2, ly2 = poly
+                        block_lines.append({"text": txt, "rect": [lx1, ly1, lx2, ly2]})
 
         # Render individual text lines using spatial coordinates
         lines_html = ""
         for line in block_lines:
-            lx1, ly1, lx2, ly2 = [c * self.scale for c in line["rect"]]
+            lx1, ly1, lx2, ly2 = [
+                coordinate * self.scale for coordinate in line["rect"]
+            ]
             if self.is_overlapping((lx1, ly1, lx2, ly2), exclusion_zones):
                 continue
 
-            lw, lh = lx2 - lx1, ly2 - ly1
-            fs = max(8, lh * 0.75) * (1.3 if label == "doc_title" else 1.0)
-            txt = html.escape(LatexConverter.to_unicode(line["text"]))
+            line_width, line_height = lx2 - lx1, ly2 - ly1
+            fontsize = max(8, line_height * 0.75) * (
+                1.3 if label == "doc_title" else 1.0
+            )
+            escaped_text = html.escape(line["text"])
 
             # Justify fits text in a line according to its width
             line_style = (
                 f"position:absolute;"
                 f"left:{lx1 - x1}pt;"
                 f"top:{ly1 - y1}pt;"
-                f"width:{lw}pt;"
-                f"height:{lh}pt;"
-                f"font-size:{fs}pt;"
+                f"width:{line_width}pt;"
+                f"height:{line_height}pt;"
+                f"font-size:{fontsize}pt;"
                 f"white-space:nowrap;"
                 f"text-align:justify;"
                 f"text-align-last:justify;"
                 f"overflow:visible;"
             )
 
-            lines_html += f"<div style='{line_style}'>{txt}</div>"
+            lines_html += f"<div style='{line_style}'>{escaped_text}</div>"
 
-        return f"<div class='block cls_{label}' style='left:{x1}pt;top:{y1}pt;width:{bw}pt;height:{bh}pt;'><span class='block-label'>{label}</span>{inner_html + lines_html}</div>"
+        return f"<div class='block cls_{label}' style='left:{x1_shifted}pt;top:{y1_shifted}pt;width:{block_width}pt;height:{block_height}pt;'><span class='block-label'>{label}</span>{inner_html + lines_html}</div>"
 
 
 class HTMLReconstructor:
-    def __init__(self, input_path):
+    def __init__(self, input_path, use_table=False, use_formula=False):
         self.input_path = Path(input_path) if input_path else Path(".")
         self.output_dir = Path("./output")
         self.imgs_dir = self.output_dir / "imgs"
         self.image_map = self._load_image_map()
+        self.use_table = use_table
+        self.use_formula = use_formula
 
     # Map ocr bounding boxes to pre-extracted image files
     def _load_image_map(self):
-        imap = {}
+        image_mapping = {}
         if self.imgs_dir.exists():
-            for f in self.imgs_dir.glob("*.jpg"):
+            for file_path in self.imgs_dir.glob("*.jpg"):
                 try:
-                    c = [int(p) for p in f.stem.split("_")[-4:]]
-                    if len(c) == 4:
-                        imap[tuple(c)] = f.name
+                    coords = [int(point) for point in file_path.stem.split("_")[-4:]]
+                    if len(coords) == 4:
+                        image_mapping[tuple(coords)] = file_path.name
                 except FileNotFoundError:
                     continue
-        return imap
+        return image_mapping
 
     def _get_html_head(self, title):
-        return f"""<!DOCTYPE html>
+        return dedent(f"""\
+            <!DOCTYPE html>
             <html>
             <head>
                 <meta charset='utf-8'>
@@ -248,81 +204,125 @@ class HTMLReconstructor:
             </head>
             <body contenteditable='true' spellcheck='false'>
                 <button class='print-btn' onclick='window.print()' contenteditable='false'>Print PDF</button>
-            """
+            """)
 
     # Reconstruct page-level json to HTML
     def reconstruct(self):
         json_files = sorted(
             [
-                f
-                for f in self.output_dir.glob("*.json")
-                if f.name.startswith(self.input_path.stem)
+                json_file
+                for json_file in self.output_dir.glob("*.json")
+                if json_file.name.startswith(self.input_path.stem)
             ]
         )
-        doc = None
+        pdf_document = None
         try:
-            doc = fitz.open(str(self.input_path))
+            pdf_document = fitz.open(str(self.input_path))
         except FileNotFoundError:
             pass
 
         html_content = [self._get_html_head(self.input_path.stem)]
 
-        for i, jfile in enumerate(json_files):
-            data = json.loads(jfile.read_text(encoding="utf-8"))
+        for file_index, json_file in enumerate(json_files):
+            data = json.loads(json_file.read_text(encoding="utf-8"))
             blocks = data.get("parsing_res_list", [])
 
-            pw, ph = (595.0, 842.0)
-            if doc and i < len(doc):
-                pw, ph = doc[i].rect.width, doc[i].rect.height
+            page_width, page_height = (595.0, 842.0)
+            if pdf_document and file_index < len(pdf_document):
+                page_width, page_height = (
+                    pdf_document[file_index].rect.width,
+                    pdf_document[file_index].rect.height,
+                )
 
-            # Find size document
-            max_y = max((b["block_bbox"][3] for b in blocks), default=ph)
-            max_x = max((b["block_bbox"][2] for b in blocks), default=pw)
-
-            # Scale document to fit PDF boundary
-            scale_w = pw / (max_x * 1.08) if max_x > pw else 1.0
-            scale_h = ph / (max_y * 1.05) if max_y > ph else 1.0
-            scale = min(scale_w, scale_h)
-
-            renderer = BlockRenderer(scale, self.image_map, self.imgs_dir)
-            html_content.append(
-                f"<div class='page' style='width:{pw}pt;height:{ph}pt;'>"
+            # Find size of document
+            min_x = min((block["block_bbox"][0] for block in blocks), default=0)
+            min_y = min((block["block_bbox"][1] for block in blocks), default=0)
+            max_x = max(
+                (block["block_bbox"][2] for block in blocks), default=page_width
+            )
+            max_y = max(
+                (block["block_bbox"][3] for block in blocks), default=page_height
             )
 
-            ocr = data.get("overall_ocr_res", {})
-            t_list = ocr.get("rec_text") or ocr.get("rec_texts") or []
-            b_list = ocr.get("rec_boxes") or ocr.get("dt_boxes") or []
-            glines = []
-            for t, b in zip(t_list, b_list):
-                if not b:
+            content_width = max_x - min_x
+            content_height = max_y - min_y
+
+            # Scale document to fit PDF boundary
+            scale_width = (
+                (page_width * 0.9) / content_width if content_width > 0 else 1.0
+            )
+            scale_height = (
+                (page_height * 0.9) / content_height if content_height > 0 else 1.0
+            )
+            scale = min(scale_width, scale_height)
+
+            offset_x = (
+                (page_width - (content_width * scale)) / 2 if content_width > 0 else 0
+            )
+            offset_y = (
+                (page_height - (content_height * scale)) / 2
+                if content_height > 0
+                else 0
+            )
+
+            renderer = BlockRenderer(
+                scale,
+                offset_x,
+                offset_y,
+                min_x,
+                min_y,
+                self.image_map,
+                self.imgs_dir,
+                self.use_table,
+                self.use_formula,
+            )
+            html_content.append(
+                f"<div class='page' style='width:{page_width}pt;height:{page_height}pt;'>"
+            )
+
+            ocr_results = data.get("overall_ocr_res", {})
+            text_list = (
+                ocr_results.get("rec_text") or ocr_results.get("rec_texts") or []
+            )
+            box_list = ocr_results.get("rec_boxes") or ocr_results.get("dt_boxes") or []
+            global_lines = []
+            for text_val, box_val in zip(text_list, box_list):
+                if not box_val:
                     continue
-                if isinstance(b[0], list):
+                if isinstance(box_val[0], list):
                     lx1, ly1, lx2, ly2 = (
-                        min(p[0] for p in b),
-                        min(p[1] for p in b),
-                        max(p[0] for p in b),
-                        max(p[1] for p in b),
+                        min(p[0] for p in box_val),
+                        min(p[1] for p in box_val),
+                        max(p[0] for p in box_val),
+                        max(p[1] for p in box_val),
                     )
                 else:
-                    lx1, ly1, lx2, ly2 = b
-                glines.append({"text": t, "rect": [lx1, ly1, lx2, ly2], "used": False})
+                    lx1, ly1, lx2, ly2 = box_val
+                global_lines.append(
+                    {"text": text_val, "rect": [lx1, ly1, lx2, ly2], "used": False}
+                )
 
-            excl = [
-                [c * scale for c in b["block_bbox"]]
-                for b in blocks
-                if b["block_label"] in ["image", "figure", "chart", "table", "formula"]
+            excl_labels = ["image", "figure", "chart"]
+            if not self.use_table:
+                excl_labels.append("table")
+            if not self.use_formula:
+                excl_labels.append("formula")
+
+            exclusion_zones = [
+                [coordinate * scale for coordinate in block["block_bbox"]]
+                for block in blocks
+                if block["block_label"] in excl_labels
             ]
 
-            for b in blocks:
-                if b["block_label"] == "formula":
-                    html_content.append(renderer.render_formula(b))
-                else:
-                    html_content.append(renderer.render_text(b, glines, excl))
+            for block in blocks:
+                html_content.append(
+                    renderer.render_text(block, global_lines, exclusion_zones)
+                )
 
             html_content.append("</div>")
 
-        if doc:
-            doc.close()
+        if pdf_document:
+            pdf_document.close()
 
         html_content.extend(["</body></html>"])
 
@@ -337,4 +337,7 @@ class HTMLReconstructor:
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        HTMLReconstructor(sys.argv[1]).reconstruct()
+        use_table = "--table" in sys.argv
+        use_formula = "--formula" in sys.argv
+        input_path = [arg for arg in sys.argv[1:] if not arg.startswith("--")][0]
+        HTMLReconstructor(input_path, use_table, use_formula).reconstruct()
