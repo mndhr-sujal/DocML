@@ -1,0 +1,617 @@
+{
+    "input_path": "C:\\Users\\suraj\\Desktop\\Project\\Demo files\\compressiondemo.pdf",
+    "page_index": 12,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_seal_recognition": false,
+        "use_table_recognition": false,
+        "use_formula_recognition": false,
+        "use_chart_recognition": false,
+        "use_region_detection": true,
+        "format_block_content": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "It organizes content conceptually and extracts important insights using NLP models.\n\n",
+            "block_bbox": [
+                247,
+                167,
+                1015,
+                229
+            ],
+            "block_id": 0,
+            "block_order": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "Its user-friendly interface lessens the need for manual settings for both inexperienced and expert users.\n\n",
+            "block_bbox": [
+                248,
+                274,
+                964,
+                340
+            ],
+            "block_id": 1,
+            "block_order": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "Depending on the content and user intent, it recommends subsequent actions such as summarization, keyword extraction, or format conversion.",
+            "block_bbox": [
+                248,
+                381,
+                1022,
+                445
+            ],
+            "block_id": 2,
+            "block_order": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "This application solves common tech problems and makes existing OCR tools much easier to use. It's designed to change how we handle documents, making the whole process smarter, more interactive, and accessible to everyone.",
+            "block_bbox": [
+                211,
+                504,
+                1044,
+                616
+            ],
+            "block_id": 3,
+            "block_order": 4
+        },
+        {
+            "block_label": "number",
+            "block_content": "7",
+            "block_bbox": [
+                624,
+                1563,
+                635,
+                1580
+            ],
+            "block_id": 4,
+            "block_order": null
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 2,
+                "label": "text",
+                "score": 0.9602817296981812,
+                "coordinate": [
+                    211.27291870117188,
+                    504.34423828125,
+                    1044.9671630859375,
+                    616.9193115234375
+                ]
+            },
+            {
+                "cls_id": 2,
+                "label": "text",
+                "score": 0.941601574420929,
+                "coordinate": [
+                    247.73886108398438,
+                    167.19253540039062,
+                    1015.2498779296875,
+                    229.93783569335938
+                ]
+            },
+            {
+                "cls_id": 2,
+                "label": "text",
+                "score": 0.9359623789787292,
+                "coordinate": [
+                    248.73965454101562,
+                    381.53350830078125,
+                    1022.749755859375,
+                    445.5015869140625
+                ]
+            },
+            {
+                "cls_id": 2,
+                "label": "text",
+                "score": 0.933544933795929,
+                "coordinate": [
+                    248.6524658203125,
+                    274.8309326171875,
+                    964.28076171875,
+                    340.177490234375
+                ]
+            },
+            {
+                "cls_id": 3,
+                "label": "number",
+                "score": 0.7714060544967651,
+                "coordinate": [
+                    624.0984497070312,
+                    1563.415771484375,
+                    635.3330688476562,
+                    1580.960205078125
+                ]
+            }
+        ]
+    },
+    "overall_ocr_res": {
+        "input_path": null,
+        "page_index": null,
+        "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+        },
+        "dt_polys": [
+            [
+                [
+                    271,
+                    167
+                ],
+                [
+                    1015,
+                    167
+                ],
+                [
+                    1015,
+                    191
+                ],
+                [
+                    271,
+                    191
+                ]
+            ],
+            [
+                [
+                    283,
+                    206
+                ],
+                [
+                    366,
+                    206
+                ],
+                [
+                    366,
+                    234
+                ],
+                [
+                    283,
+                    234
+                ]
+            ],
+            [
+                [
+                    284,
+                    275
+                ],
+                [
+                    964,
+                    275
+                ],
+                [
+                    964,
+                    298
+                ],
+                [
+                    284,
+                    298
+                ]
+            ],
+            [
+                [
+                    286,
+                    317
+                ],
+                [
+                    590,
+                    317
+                ],
+                [
+                    590,
+                    341
+                ],
+                [
+                    286,
+                    341
+                ]
+            ],
+            [
+                [
+                    282,
+                    382
+                ],
+                [
+                    1022,
+                    382
+                ],
+                [
+                    1022,
+                    406
+                ],
+                [
+                    282,
+                    406
+                ]
+            ],
+            [
+                [
+                    287,
+                    424
+                ],
+                [
+                    922,
+                    424
+                ],
+                [
+                    922,
+                    447
+                ],
+                [
+                    287,
+                    447
+                ]
+            ],
+            [
+                [
+                    213,
+                    503
+                ],
+                [
+                    1045,
+                    504
+                ],
+                [
+                    1045,
+                    531
+                ],
+                [
+                    213,
+                    530
+                ]
+            ],
+            [
+                [
+                    215,
+                    549
+                ],
+                [
+                    1045,
+                    549
+                ],
+                [
+                    1045,
+                    573
+                ],
+                [
+                    215,
+                    573
+                ]
+            ],
+            [
+                [
+                    215,
+                    592
+                ],
+                [
+                    898,
+                    593
+                ],
+                [
+                    898,
+                    617
+                ],
+                [
+                    215,
+                    616
+                ]
+            ],
+            [
+                [
+                    620,
+                    1561
+                ],
+                [
+                    641,
+                    1561
+                ],
+                [
+                    641,
+                    1586
+                ],
+                [
+                    620,
+                    1586
+                ]
+            ]
+        ],
+        "text_det_params": {
+            "limit_side_len": 736,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+        },
+        "text_type": "general",
+        "textline_orientation_angles": [
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1
+        ],
+        "text_rec_score_thresh": 0.0,
+        "return_word_box": false,
+        "rec_texts": [
+            "It organizes content conceptually and extracts important insights using NLP",
+            "models.",
+            "Its user-friendly interface lessens the need for manual settings for both",
+            "inexperienced and expert users.",
+            "Depending on the content and user intent, it recommends subsequent actions",
+            "such as summarization, keyword extraction, or format conversion.",
+            "This application solves common tech problems and makes existing OCR tools",
+            "much easier to use. It's designed to change how we handle documents, making the",
+            "whole process smarter, more interactive, and accessible to everyone.",
+            "7"
+        ],
+        "rec_scores": [
+            0.983228325843811,
+            0.9998217821121216,
+            0.9852135181427002,
+            0.9960220456123352,
+            0.9894388318061829,
+            0.9833328723907471,
+            0.9924323558807373,
+            0.9911264181137085,
+            0.9807732701301575,
+            0.9942032694816589
+        ],
+        "rec_polys": [
+            [
+                [
+                    271,
+                    167
+                ],
+                [
+                    1015,
+                    167
+                ],
+                [
+                    1015,
+                    191
+                ],
+                [
+                    271,
+                    191
+                ]
+            ],
+            [
+                [
+                    283,
+                    206
+                ],
+                [
+                    366,
+                    206
+                ],
+                [
+                    366,
+                    234
+                ],
+                [
+                    283,
+                    234
+                ]
+            ],
+            [
+                [
+                    284,
+                    275
+                ],
+                [
+                    964,
+                    275
+                ],
+                [
+                    964,
+                    298
+                ],
+                [
+                    284,
+                    298
+                ]
+            ],
+            [
+                [
+                    286,
+                    317
+                ],
+                [
+                    590,
+                    317
+                ],
+                [
+                    590,
+                    341
+                ],
+                [
+                    286,
+                    341
+                ]
+            ],
+            [
+                [
+                    282,
+                    382
+                ],
+                [
+                    1022,
+                    382
+                ],
+                [
+                    1022,
+                    406
+                ],
+                [
+                    282,
+                    406
+                ]
+            ],
+            [
+                [
+                    287,
+                    424
+                ],
+                [
+                    922,
+                    424
+                ],
+                [
+                    922,
+                    447
+                ],
+                [
+                    287,
+                    447
+                ]
+            ],
+            [
+                [
+                    213,
+                    503
+                ],
+                [
+                    1045,
+                    504
+                ],
+                [
+                    1045,
+                    531
+                ],
+                [
+                    213,
+                    530
+                ]
+            ],
+            [
+                [
+                    215,
+                    549
+                ],
+                [
+                    1045,
+                    549
+                ],
+                [
+                    1045,
+                    573
+                ],
+                [
+                    215,
+                    573
+                ]
+            ],
+            [
+                [
+                    215,
+                    592
+                ],
+                [
+                    898,
+                    593
+                ],
+                [
+                    898,
+                    617
+                ],
+                [
+                    215,
+                    616
+                ]
+            ],
+            [
+                [
+                    620,
+                    1561
+                ],
+                [
+                    641,
+                    1561
+                ],
+                [
+                    641,
+                    1586
+                ],
+                [
+                    620,
+                    1586
+                ]
+            ]
+        ],
+        "rec_boxes": [
+            [
+                271,
+                167,
+                1015,
+                191
+            ],
+            [
+                283,
+                206,
+                366,
+                234
+            ],
+            [
+                284,
+                275,
+                964,
+                298
+            ],
+            [
+                286,
+                317,
+                590,
+                341
+            ],
+            [
+                282,
+                382,
+                1022,
+                406
+            ],
+            [
+                287,
+                424,
+                922,
+                447
+            ],
+            [
+                213,
+                503,
+                1045,
+                531
+            ],
+            [
+                215,
+                549,
+                1045,
+                573
+            ],
+            [
+                215,
+                592,
+                898,
+                617
+            ],
+            [
+                620,
+                1561,
+                641,
+                1586
+            ]
+        ]
+    }
+}
