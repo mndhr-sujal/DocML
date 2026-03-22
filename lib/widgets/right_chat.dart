@@ -85,6 +85,52 @@ class _RightChatState extends State<RightChat> {
     setState(() => _processing = false);
   }
 
+  Future<void> _handleDroppedFile(String path, String name) async {
+    final file = File(path);
+    if (!await file.exists()) {
+      _addMsg(MessageSender.ai, 'File not found: $name');
+      return;
+    }
+
+    setState(() {
+      _addMsg(MessageSender.user, 'Uploading: $name');
+      _startingModels = true;
+    });
+
+    final isRunning = await _backend.ensureRunning(
+      onStatusUpdate: (m) => _addMsg(MessageSender.ai, m),
+    );
+    setState(() {
+      _startingModels = false;
+    });
+
+    if (!isRunning) {
+      _addMsg(MessageSender.ai, 'Backend connection failed.');
+    } else {
+      setState(() {
+        _processing = true;
+      });
+      try {
+        final data = await _backend.uploadFile(file, name);
+        final chunks = data['chunks_ingested'] ?? 0;
+        if (chunks == 0) {
+          _addMsg(
+            MessageSender.ai,
+            'No text could be extracted from "$name".',
+            [name],
+          );
+        } else {
+          _addMsg(MessageSender.ai, 'Ingested "$name" ($chunks chunks).', [
+            name,
+          ]);
+        }
+      } catch (e) {
+        _addMsg(MessageSender.ai, 'Upload error: $e');
+      }
+    }
+    setState(() => _processing = false);
+  }
+
   Future<void> _handleChat(String text) async {
     if (text.trim().isEmpty) return;
     setState(() {
@@ -167,56 +213,70 @@ class _RightChatState extends State<RightChat> {
     final showLoading = _processing || _startingModels;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return SelectionArea(
-      child: Container(
-        color: isDark
-            ? Theme.of(context).colorScheme.surface
-            : const Color(0xFFF1E9FD),
-        child: Column(
-          children: [
-            ChatHeader(
-              onUpload: showLoading ? null : _handleUpload,
-              isDownloading: _isDownloading,
-              onDownload: _handleDownload,
-              onClear: showLoading
-                  ? null
-                  : () async {
-                      try {
-                        await _backend.clearDatabase();
-                        setState(() {
-                          _messages.clear();
-                          _messages.add(
-                            ChatMessage(
-                              sender: MessageSender.ai,
-                              text:
-                                  'Hello! Upload a document or ask me a question.',
-                            ),
-                          );
-                        });
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to clear: $e')),
-                          );
-                        }
-                      }
-                    },
+      child: DragTarget<Map<String, dynamic>>(
+        onAcceptWithDetails: (details) {
+          final data = details.data;
+          final path = data['path'];
+          final name = data['name'];
+          if (path != null && name != null) {
+            _handleDroppedFile(path, name);
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          return Container(
+            color: candidateData.isNotEmpty
+                ? (isDark ? Colors.blue.shade900 : Colors.blue.shade100)
+                : (isDark
+                    ? Theme.of(context).colorScheme.surface
+                    : const Color(0xFFF1E9FD)),
+            child: Column(
+              children: [
+                ChatHeader(
+                  onUpload: showLoading ? null : _handleUpload,
+                  isDownloading: _isDownloading,
+                  onDownload: _handleDownload,
+                  onClear: showLoading
+                      ? null
+                      : () async {
+                          try {
+                            await _backend.clearDatabase();
+                            setState(() {
+                              _messages.clear();
+                              _messages.add(
+                                ChatMessage(
+                                  sender: MessageSender.ai,
+                                  text:
+                                      'Hello! Upload a document or ask me a question.',
+                                ),
+                              );
+                            });
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to clear: $e')),
+                              );
+                            }
+                          }
+                        },
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _messages.length + (showLoading ? 1 : 0),
+                    itemBuilder: (_, i) => i == _messages.length
+                        ? const LoadingIndicator()
+                        : MessageBubble(message: _messages[i]),
+                  ),
+                ),
+                ChatInput(
+                  controller: _controller,
+                  isProcessing: showLoading,
+                  onSend: _handleChat,
+                ),
+              ],
             ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: _messages.length + (showLoading ? 1 : 0),
-                itemBuilder: (_, i) => i == _messages.length
-                    ? const LoadingIndicator()
-                    : MessageBubble(message: _messages[i]),
-              ),
-            ),
-            ChatInput(
-              controller: _controller,
-              isProcessing: showLoading,
-              onSend: _handleChat,
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -382,39 +442,58 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAI = message.isAI;
-    return Align(
-      alignment: isAI ? Alignment.centerLeft : Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(12),
-        constraints: const BoxConstraints(maxWidth: 240),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade400,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelectableText(message.text, style: const TextStyle(fontSize: 14)),
-            if (isAI && message.sources.isNotEmpty) ...[
-              const Divider(height: 16),
-              const Text(
-                'Sources:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-              ...message.sources.map(
-                (s) => Padding(
-                  padding: const EdgeInsets.only(left: 8, top: 2),
-                  child: SelectableText(
-                    '• $s',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth * 0.8; // Use 80% of available width
+        return Align(
+          alignment: isAI ? Alignment.centerLeft : Alignment.centerRight,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.all(12),
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.blue.shade400 : const Color.fromARGB(255, 144, 213, 255),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(
+                  message.text,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-              ),
-            ],
-          ],
-        ),
-      ),
+                if (isAI && message.sources.isNotEmpty) ...[
+                  const Divider(height: 16),
+                  Text(
+                    'Sources:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  ...message.sources.map(
+                    (s) => Padding(
+                      padding: const EdgeInsets.only(left: 8, top: 2),
+                      child: SelectableText(
+                        '• $s',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

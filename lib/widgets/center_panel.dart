@@ -330,7 +330,7 @@ class _CenterPanelState extends State<CenterPanel> {
                           style: TextStyle(color: Colors.black),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
                       SizedBox(
                         width: 110,
                         child: Column(
@@ -449,7 +449,7 @@ class _CenterPanelState extends State<CenterPanel> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text("File Format", style: TextStyle(color: Colors.black)),
-            SizedBox(width: 2),
+              
             Icon(Icons.arrow_drop_down, color: Colors.black),
           ],
         ),
