@@ -8,6 +8,7 @@ py7zr
 PyMuPDF
 pylatexenc
 llama-cpp-python
+python-multipart
 huggingface-hub
 chromadb
 uvicorn
